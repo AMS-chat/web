@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#3B82F6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="KCY Chat">
+  
+  <title>KCY Chat - Secure Anonymous Messaging</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    body { overscroll-behavior-y: contain; }
+    .chat-scroll { scroll-behavior: smooth; }
+    .message-enter { animation: slideIn 0.2s ease-out; }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 overflow-hidden">
+  <div id="app"></div>
+
+  <script>
+    const API_URL = window.location.origin;
+
+    let state = {
+      screen: 'login',
+      phone: '',
+      currentChat: null,
+      friends: [],
+      messages: {},
+      isPaid: false,
+      ws: null
+    };
+
+    function connectWebSocket(phone) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(protocol + '//' + window.location.host + '?phone=' + phone);
+      
+      ws.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'message') {
+          const fromPhone = data.from;
+          if (!state.messages[fromPhone]) {
+            state.messages[fromPhone] = [];
+          }
+          state.messages[fromPhone].push({
+            id: Date.now(),
+            text: data.text,
+            sent: false,
+            timestamp: Date.now()
+          });
+          
+          const friendIndex = state.friends.findIndex(function(f) { return f.phone === fromPhone; });
+          if (friendIndex !== -1) {
+            state.friends[friendIndex].lastMessage = data.text;
+            state.friends[friendIndex].timestamp = Date.now();
+            if (state.currentChat !== fromPhone) {
+              state.friends[friendIndex].unread++;
+            }
+          }
+          
+          render();
+        }
+      };
+
+      state.ws = ws;
+      return ws;
+    }
+
+    function checkPayment(phone) {
+      return fetch(API_URL + '/api/check-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) { return data.isPaid; })
+      .catch(function(err) {
+        console.error('Payment check failed:', err);
+        return false;
+      });
+    }
+
+    function processPayment(phone, token) {
+      return fetch(API_URL + '/api/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone, token: token })
+      })
+      .then(function(res) { return res.json(); })
+      .catch(function(err) {
+        console.error('Payment failed:', err);
+        return { success: false };
+      });
+    }
+
+    function loadFriends(phone) {
+      fetch(API_URL + '/api/friends/' + phone)
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          state.friends = data.friends || [];
+          render();
+        })
+        .catch(function(err) {
+          console.error('Load friends failed:', err);
+        });
+    }
+
+    function addFriend(phone, friendPhone) {
+      return fetch(API_URL + '/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone, friendPhone: friendPhone })
+      })
+      .then(function(res) { return res.json(); })
+      .catch(function(err) {
+        console.error('Add friend failed:', err);
+        return { success: false };
+      });
+    }
+
+    function loadMessages(phone, friendPhone) {
+      return fetch(API_URL + '/api/messages/' + phone + '/' + friendPhone)
+        .then(function(res) { return res.json(); })
+        .then(function(data) { return data.messages || []; })
+        .catch(function(err) {
+          console.error('Load messages failed:', err);
+          return [];
+        });
+    }
+
+    function sendMessage(from, to, text) {
+      if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+        state.ws.send(JSON.stringify({
+          type: 'message',
+          from: from,
+          to: to,
+          text: text
+        }));
+      }
+    }
+
+    function formatTime(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffHours = (now - date) / (1000 * 60 * 60);
+      
+      if (diffHours < 24) {
+        return date.toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' });
+      }
+      return date.toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit' });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function handleLogin() {
+      const phone = document.getElementById('phone-input').value;
+      if (phone.length < 10) return;
+      
+      state.phone = phone;
+      
+      checkPayment(phone).then(function(isPaid) {
+        state.isPaid = isPaid;
+        
+        if (isPaid) {
+          connectWebSocket(phone);
+          loadFriends(phone);
+          state.screen = 'home';
+        } else {
+          state.screen = 'payment';
+        }
+        render();
+      });
+    }
+
+    function handlePayment() {
+      const cardNumber = document.getElementById('card-number').value;
+      if (cardNumber.length < 16) return;
+      
+      processPayment(state.phone, 'tok_visa').then(function(result) {
+        if (result.success) {
+          state.isPaid = true;
+          document.getElementById('payment-form').style.display = 'none';
+          document.getElementById('success-message').style.display = 'block';
+          
+          setTimeout(function() {
+            connectWebSocket(state.phone);
+            loadFriends(state.phone);
+            state.screen = 'home';
+            render();
+          }, 2000);
+        }
+      });
+    }
+
+    function openChat(friendPhone) {
+      state.currentChat = friendPhone;
+      state.screen = 'chat';
+      
+      const friend = state.friends.find(function(f) { return f.phone === friendPhone; });
+      if (friend) friend.unread = 0;
+      
+      if (!state.messages[friendPhone]) {
+        loadMessages(state.phone, friendPhone).then(function(msgs) {
+          state.messages[friendPhone] = msgs;
+          render();
+          scrollToBottom();
+        });
+      } else {
+        render();
+        setTimeout(scrollToBottom, 100);
+      }
+    }
+
+    function handleSendMessage() {
+      const input = document.getElementById('message-input');
+      const text = input.value.trim();
+      
+      if (!text || !state.currentChat) return;
+      
+      const msg = {
+        id: Date.now(),
+        text: text,
+        sent: true,
+        timestamp: Date.now()
+      };
+      
+      if (!state.messages[state.currentChat]) {
+        state.messages[state.currentChat] = [];
+      }
+      state.messages[state.currentChat].push(msg);
+      
+      const friend = state.friends.find(function(f) { return f.phone === state.currentChat; });
+      if (friend) {
+        friend.lastMessage = text;
+        friend.timestamp = Date.now();
+      }
+      
+      sendMessage(state.phone, state.currentChat, text);
+      
+      input.value = '';
+      render();
+      scrollToBottom();
+    }
+
+    function handleAddFriend() {
+      const friendPhone = document.getElementById('friend-phone-input').value;
+      if (friendPhone.length < 10) return;
+      
+      addFriend(state.phone, friendPhone).then(function(result) {
+        if (result.success) {
+          state.friends.push({
+            phone: friendPhone,
+            lastMessage: '',
+            timestamp: Date.now(),
+            unread: 0
+          });
+          state.screen = 'home';
+          render();
+        }
+      });
+    }
+
+    function scrollToBottom() {
+      const container = document.getElementById('messages-container');
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+
+    function renderLogin() {
+      return '<div class="h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">' +
+        '<div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">' +
+          '<div class="text-center mb-8">' +
+            '<h1 class="text-4xl font-bold text-gray-800 mb-2">KCY Chat</h1>' +
+            '<p class="text-gray-500">Сигурен, анонимен чат</p>' +
+          '</div>' +
+          '<div class="space-y-4">' +
+            '<div>' +
+              '<label class="block text-sm font-medium text-gray-700 mb-2">Телефонен номер</label>' +
+              '<input id="phone-input" type="tel" placeholder="+359 888 123 456" ' +
+                'class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition" ' +
+                'onkeypress="if(event.key===\'Enter\') handleLogin()" />' +
+            '</div>' +
+            '<button onclick="handleLogin()" ' +
+              'class="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold hover:bg-blue-600 active:scale-95 transition">' +
+              'Влез' +
+            '</button>' +
+            '<p class="text-xs text-gray-500 text-center mt-4">Без код, без регистрация - само телефон</p>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function renderPayment() {
+      return '<div class="h-screen bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center p-4">' +
+        '<div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">' +
+          '<div id="payment-form">' +
+            '<div class="text-center mb-8">' +
+              '<div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">' +
+                '<svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                  '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />' +
+                '</svg>' +
+              '</div>' +
+              '<h2 class="text-3xl font-bold text-gray-800 mb-2">Месечен абонамент</h2>' +
+              '<p class="text-5xl font-bold text-blue-600 my-4">$1</p>' +
+              '<p class="text-gray-500">или €1 за Европа</p>' +
+            '</div>' +
+            '<div class="space-y-4">' +
+              '<div>' +
+                '<label class="block text-sm font-medium text-gray-700 mb-2">Номер на карта</label>' +
+                '<input id="card-number" type="text" placeholder="1234 5678 9012 3456" maxlength="16" ' +
+                  'class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition" />' +
+              '</div>' +
+              '<div class="grid grid-cols-2 gap-4">' +
+                '<input type="text" placeholder="MM/YY" maxlength="5" ' +
+                  'class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition" />' +
+                '<input type="text" placeholder="CVV" maxlength="3" ' +
+                  'class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition" />' +
+              '</div>' +
+              '<button onclick="handlePayment()" ' +
+                'class="w-full bg-green-500 text-white py-3 rounded-xl font-semibold hover:bg-green-600 active:scale-95 transition">' +
+                'Плати $1/месец' +
+              '</button>' +
+              '<p class="text-xs text-gray-500 text-center">Защитено от Stripe • Демо: въведи 16 цифри</p>' +
+            '</div>' +
+            '<div class="mt-6 p-4 bg-blue-50 rounded-xl">' +
+              '<p class="text-xs text-gray-600">✓ Анонимен чат<br/>✓ Без реклами<br/>✓ End-to-end encryption<br/>✓ Без проследяване</p>' +
+            '</div>' +
+          '</div>' +
+          '<div id="success-message" style="display:none;" class="text-center py-12">' +
+            '<div class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">' +
+              '<svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />' +
+              '</svg>' +
+            '</div>' +
+            '<h2 class="text-2xl font-bold text-gray-800">Успешно плащане!</h2>' +
+            '<p class="text-gray-500 mt-2">Добре дошъл в KCY Chat</p>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function renderHome() {
+      const sortedFriends = state.friends.slice().sort(function(a, b) {
+        return b.timestamp - a.timestamp;
+      });
+      
+      let friendsHtml = '';
+      if (sortedFriends.length === 0) {
+        friendsHtml = '<div class="text-center py-12 text-gray-500">' +
+          '<p>Няма приятели все още</p>' +
+          '<button onclick="state.screen=\'addFriend\'; render();" class="mt-4 text-blue-500 hover:text-blue-600">' +
+            'Добави приятел' +
+          '</button>' +
+        '</div>';
+      } else {
+        friendsHtml = sortedFriends.map(function(friend) {
+          return '<div onclick="openChat(\'' + friend.phone + '\')" ' +
+            'class="bg-white border-b border-gray-200 p-4 hover:bg-gray-50 active:bg-gray-100 cursor-pointer transition">' +
+            '<div class="flex items-center justify-between">' +
+              '<div class="flex-1">' +
+                '<div class="flex items-center justify-between mb-1">' +
+                  '<span class="font-semibold text-gray-800">' + escapeHtml(friend.phone) + '</span>' +
+                  '<span class="text-xs text-gray-500">' + formatTime(friend.timestamp) + '</span>' +
+                '</div>' +
+                '<p class="text-sm text-gray-600 truncate">' + escapeHtml(friend.lastMessage || 'Нов чат') + '</p>' +
+              '</div>' +
+              (friend.unread > 0 ? 
+                '<div class="ml-4 bg-blue-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">' +
+                  friend.unread +
+                '</div>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+      
+      return '<div class="h-screen bg-gray-50 flex flex-col">' +
+        '<div class="bg-blue-500 text-white p-4 shadow-lg">' +
+          '<div class="flex items-center justify-between">' +
+            '<h1 class="text-2xl font-bold">KCY Chat</h1>' +
+            '<button onclick="state.screen=\'addFriend\'; render();" ' +
+              'class="bg-blue-600 p-2 rounded-full hover:bg-blue-700 active:scale-95 transition">' +
+              '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />' +
+              '</svg>' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex-1 overflow-y-auto">' + friendsHtml + '</div>' +
+        '<div class="bg-white border-t border-gray-200 p-3 text-center text-xs text-gray-500">' +
+          'Абонамент активен • ' + escapeHtml(state.phone) +
+        '</div>' +
+      '</div>';
+    }
+
+    function renderAddFriend() {
+      return '<div class="h-screen bg-gray-50 flex flex-col">' +
+        '<div class="bg-blue-500 text-white p-4 shadow-lg">' +
+          '<div class="flex items-center">' +
+            '<button onclick="state.screen=\'home\'; render();" class="mr-4">' +
+              '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />' +
+              '</svg>' +
+            '</button>' +
+            '<h1 class="text-xl font-bold">Добави приятел</h1>' +
+          '</div>' +
+        '</div>' +
+        '<div class="p-4">' +
+          '<div class="bg-white rounded-xl p-4 mb-4">' +
+            '<label class="block text-sm font-medium text-gray-700 mb-2">Телефонен номер</label>' +
+            '<input id="friend-phone-input" type="tel" placeholder="+359 888 999 000" ' +
+              'class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition" ' +
+              'onkeypress="if(event.key===\'Enter\') handleAddFriend()" />' +
+          '</div>' +
+          '<button onclick="handleAddFriend()" ' +
+            'class="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold hover:bg-blue-600 active:scale-95 transition">' +
+            'Добави' +
+          '</button>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function renderChat() {
+      const chatMessages = state.messages[state.currentChat] || [];
+      
+      const messagesHtml = chatMessages.map(function(msg) {
+        return '<div class="flex ' + (msg.sent ? 'justify-end' : 'justify-start') + ' message-enter">' +
+          '<div class="max-w-xs px-4 py-2 rounded-2xl ' + 
+            (msg.sent ? 'bg-blue-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none shadow') + '">' +
+            '<p>' + escapeHtml(msg.text) + '</p>' +
+            '<p class="text-xs mt-1 ' + (msg.sent ? 'text-blue-100' : 'text-gray-500') + '">' +
+              formatTime(msg.timestamp) +
+            '</p>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      
+      return '<div class="h-screen bg-gray-100 flex flex-col">' +
+        '<div class="bg-blue-500 text-white p-4 shadow-lg">' +
+          '<div class="flex items-center">' +
+            '<button onclick="state.screen=\'home\'; render();" class="mr-4">' +
+              '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />' +
+              '</svg>' +
+            '</button>' +
+            '<div>' +
+              '<h2 class="font-semibold">' + escapeHtml(state.currentChat) + '</h2>' +
+              '<p class="text-xs text-blue-100">KCY Chat</p>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-3 chat-scroll">' +
+          messagesHtml +
+        '</div>' +
+        '<div class="bg-white border-t border-gray-200 p-4">' +
+          '<div class="flex items-center space-x-2">' +
+            '<input id="message-input" type="text" placeholder="Съобщение..." ' +
+              'class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-full focus:border-blue-500 focus:outline-none transition" ' +
+              'onkeypress="if(event.key===\'Enter\') handleSendMessage()" />' +
+            '<button onclick="handleSendMessage()" ' +
+              'class="bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 active:scale-95 transition">' +
+              '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />' +
+              '</svg>' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function render() {
+      const app = document.getElementById('app');
+      
+      if (state.screen === 'login') {
+        app.innerHTML = renderLogin();
+      } else if (state.screen === 'payment') {
+        app.innerHTML = renderPayment();
+      } else if (state.screen === 'home') {
+        app.innerHTML = renderHome();
+      } else if (state.screen === 'addFriend') {
+        app.innerHTML = renderAddFriend();
+      } else if (state.screen === 'chat') {
+        app.innerHTML = renderChat();
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
