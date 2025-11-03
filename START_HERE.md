@@ -1,4 +1,4 @@
-# 👋 START HERE - KCY Chat v2.0
+# 👋 START HERE - AMS Chat v2.0
 
 ## 🎯 You're in the Right Place!
 
@@ -208,7 +208,7 @@ A: Use `./deploy.sh YOUR_SERVER_IP` or follow manual steps in README.md
 
 ### Still Stuck?
 1. Run `./dev.sh check`
-2. Check logs: `pm2 logs kcy-chat` (if deployed)
+2. Check logs: `pm2 logs ams-chat` (if deployed)
 3. Review documentation (especially troubleshooting sections)
 4. Check that all environment variables are set correctly
 
@@ -258,5 +258,5 @@ Good luck! 🚀
 ---
 
 Last updated: 2025-11-03  
-Project: KCY Chat v2.0  
+Project: AMS Chat v2.0  
 Status: Production Ready ✅

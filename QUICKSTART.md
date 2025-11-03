@@ -1,10 +1,10 @@
-# 🚀 KCY Chat v2.0 - Quick Start Guide
+# 🚀 AMS Chat v2.0 - Quick Start Guide
 
 ## ⚡ Бърз старт (5 минути)
 
 ### 1. Инсталация
 ```bash
-cd kcy-chat-improved
+cd ams-chat-improved
 npm install
 ```
 
@@ -69,7 +69,7 @@ npm run dev
 ## 📁 Структура на проекта
 
 ```
-kcy-chat-improved/
+ams-chat-improved/
 ├── server.js              # Backend сървър
 ├── db_setup.sql          # Database schema
 ├── package.json          # Dependencies
@@ -151,7 +151,7 @@ kcy-chat-improved/
 ### След deployment:
 1. SSH към сървъра
 2. Редактирай `.env` с production данни
-3. Рестартирай: `pm2 restart kcy-chat`
+3. Рестартирай: `pm2 restart ams-chat`
 4. Setup SSL: `certbot --nginx -d yourdomain.com`
 
 ---
@@ -183,7 +183,7 @@ kcy-chat-improved/
 ./dev.sh check
 
 # View logs
-pm2 logs kcy-chat
+pm2 logs ams-chat
 
 # Database issues
 sudo systemctl status postgresql
@@ -200,7 +200,7 @@ sudo systemctl status postgresql
 
 **Database error**
 - Провери PostgreSQL: `systemctl status postgresql`
-- Test connection: `psql -U postgres -d kcychat`
+- Test connection: `psql -U postgres -d amschat`
 
 **Payment not working**
 - Провери Stripe keys в `.env`

@@ -37,10 +37,10 @@ JWT_SECRET=different_random_secret_here
 ### Database Security
 ```sql
 -- Use dedicated database user with limited permissions
-CREATE USER kcychat_user WITH PASSWORD 'strong_password';
-GRANT CONNECT ON DATABASE kcychat TO kcychat_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO kcychat_user;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO kcychat_user;
+CREATE USER amschat_user WITH PASSWORD 'strong_password';
+GRANT CONNECT ON DATABASE amschat TO amschat_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO amschat_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO amschat_user;
 
 -- Disable remote PostgreSQL access (if not needed)
 # In postgresql.conf:
@@ -170,7 +170,7 @@ function escapeHtml(text) {
 ### Application Logs
 ```bash
 # Monitor application logs
-pm2 logs kcy-chat --lines 100
+pm2 logs ams-chat --lines 100
 
 # Monitor error logs
 tail -f /var/log/nginx/error.log

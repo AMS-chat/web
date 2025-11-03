@@ -1,7 +1,7 @@
 {
-  "name": "kcy-chat-backend",
+  "name": "ams-chat-backend",
   "version": "2.0.0",
-  "description": "KCY Chat Backend Server - Secure Anonymous Messaging",
+  "description": "AMS Chat Backend Server - Secure Anonymous Messaging",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -1,4 +1,4 @@
-# KCY Chat - Secure Anonymous Messaging 🔒
+# AMS Chat - Secure Anonymous Messaging 🔒
 
 Минимален, сигурен чат с месечен абонамент $1/€1
 
@@ -42,7 +42,7 @@
 ```bash
 # Clone проекта
 git clone <your-repo>
-cd kcy-chat-improved
+cd ams-chat-improved
 
 # Инсталирай dependencies
 npm install
@@ -85,7 +85,7 @@ nano .env
 **Важно:** Попълни всички променливи!
 
 ```env
-DATABASE_URL=postgresql://kcychat_user:your_password@localhost:5432/kcychat
+DATABASE_URL=postgresql://amschat_user:your_password@localhost:5432/amschat
 STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxx
 STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxx
 PORT=3000
@@ -167,13 +167,13 @@ sudo -u postgres psql -f db_setup.sql
 
 # Създай user и password
 sudo -u postgres psql
-CREATE USER kcychat_user WITH PASSWORD 'your_secure_password';
-ALTER DATABASE kcychat OWNER TO kcychat_user;
+CREATE USER amschat_user WITH PASSWORD 'your_secure_password';
+ALTER DATABASE amschat OWNER TO amschat_user;
 \q
 
 # 5. Clone проекта
-git clone <your-repo> /var/www/kcy-chat
-cd /var/www/kcy-chat
+git clone <your-repo> /var/www/ams-chat
+cd /var/www/ams-chat
 
 # 6. Инсталирай dependencies
 npm install --production
@@ -182,14 +182,14 @@ npm install --production
 nano .env
 # Попълни production данни!
 # NODE_ENV=production
-# DATABASE_URL=postgresql://kcychat_user:password@localhost:5432/kcychat
+# DATABASE_URL=postgresql://amschat_user:password@localhost:5432/amschat
 # ALLOWED_ORIGINS=https://yourdomain.com
 
 # 8. Инсталирай PM2
 npm install -g pm2
 
 # 9. Стартирай с PM2
-pm2 start server.js --name kcy-chat
+pm2 start server.js --name ams-chat
 
 # 10. Auto-start при reboot
 pm2 startup
@@ -199,7 +199,7 @@ pm2 save
 apt install nginx -y
 
 # Създай config
-nano /etc/nginx/sites-available/kcy-chat
+nano /etc/nginx/sites-available/ams-chat
 ```
 
 **Nginx Configuration:**
@@ -225,7 +225,7 @@ server {
 
 ```bash
 # Enable site
-ln -s /etc/nginx/sites-available/kcy-chat /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/ams-chat /etc/nginx/sites-enabled/
 nginx -t
 systemctl restart nginx
 
@@ -278,7 +278,7 @@ certbot renew --dry-run
 - [ ] Setup PostgreSQL backups
   ```bash
   # Daily backup cron
-  0 2 * * * pg_dump kcychat > /backups/kcychat_$(date +\%Y\%m\%d).sql
+  0 2 * * * pg_dump amschat > /backups/amschat_$(date +\%Y\%m\%d).sql
   ```
 - [ ] Setup fail2ban
   ```bash
@@ -301,8 +301,8 @@ certbot renew --dry-run
 - [ ] Enable scheduled cleanups:
   ```sql
   -- Add to crontab
-  0 3 * * * psql -U kcychat_user -d kcychat -c "SELECT cleanup_old_messages();"
-  0 * * * * psql -U kcychat_user -d kcychat -c "SELECT cleanup_expired_sessions();"
+  0 3 * * * psql -U amschat_user -d amschat -c "SELECT cleanup_old_messages();"
+  0 * * * * psql -U amschat_user -d amschat -c "SELECT cleanup_expired_sessions();"
   ```
 - [ ] Setup automated backups
 - [ ] Test backup restoration
@@ -325,7 +325,7 @@ certbot renew --dry-run
 
 ### Desktop (Chrome/Edge)
 1. Address bar → Install icon
-2. Или Settings → Install KCY Chat
+2. Или Settings → Install AMS Chat
 
 ## 🎨 Customization
 
@@ -352,7 +352,7 @@ sudo ufw status
 nginx -t
 
 # Провери logs
-pm2 logs kcy-chat
+pm2 logs ams-chat
 ```
 
 ### Database connection error
@@ -361,7 +361,7 @@ pm2 logs kcy-chat
 systemctl status postgresql
 
 # Провери connection string
-psql "postgresql://kcychat_user:password@localhost:5432/kcychat"
+psql "postgresql://amschat_user:password@localhost:5432/amschat"
 
 # Провери logs
 tail -f /var/log/postgresql/postgresql-*.log
@@ -389,7 +389,7 @@ SELECT cleanup_old_messages();
 SELECT cleanup_expired_sessions();
 
 -- Check database size
-SELECT pg_size_pretty(pg_database_size('kcychat'));
+SELECT pg_size_pretty(pg_database_size('amschat'));
 
 -- Vacuum database
 VACUUM ANALYZE;
@@ -398,17 +398,17 @@ VACUUM ANALYZE;
 ### Backup & Restore
 ```bash
 # Backup
-pg_dump -U kcychat_user kcychat > backup.sql
+pg_dump -U amschat_user amschat > backup.sql
 
 # Restore
-psql -U kcychat_user kcychat < backup.sql
+psql -U amschat_user amschat < backup.sql
 ```
 
 ## 🔄 Updates
 
 ```bash
 # Stop app
-pm2 stop kcy-chat
+pm2 stop ams-chat
 
 # Pull updates
 git pull
@@ -417,13 +417,13 @@ git pull
 npm install --production
 
 # Run migrations (if any)
-psql -U kcychat_user -d kcychat -f migrations/xxx.sql
+psql -U amschat_user -d amschat -f migrations/xxx.sql
 
 # Restart
-pm2 restart kcy-chat
+pm2 restart ams-chat
 
 # Check logs
-pm2 logs kcy-chat
+pm2 logs ams-chat
 ```
 
 ## 📞 Support

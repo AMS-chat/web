@@ -20,16 +20,16 @@ case "$1" in
         read -p "Are you sure? This will delete all data! (y/N) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            sudo -u postgres psql -c "DROP DATABASE IF EXISTS kcychat;"
+            sudo -u postgres psql -c "DROP DATABASE IF EXISTS amschat;"
             sudo -u postgres psql -f db_setup.sql
             echo "✅ Database reset complete!"
         fi
         ;;
     
     "db:backup")
-        BACKUP_FILE="backups/kcychat_$(date +%Y%m%d_%H%M%S).sql"
+        BACKUP_FILE="backups/amschat_$(date +%Y%m%d_%H%M%S).sql"
         mkdir -p backups
-        pg_dump -U postgres kcychat > $BACKUP_FILE
+        pg_dump -U postgres amschat > $BACKUP_FILE
         echo "✅ Backup saved to $BACKUP_FILE"
         ;;
     
@@ -130,10 +130,10 @@ case "$1" in
         fi
         
         # Check database
-        if psql -lqt | cut -d \| -f 1 | grep -qw kcychat; then
-            echo "✅ Database 'kcychat' exists"
+        if psql -lqt | cut -d \| -f 1 | grep -qw amschat; then
+            echo "✅ Database 'amschat' exists"
         else
-            echo "❌ Database 'kcychat' not found"
+            echo "❌ Database 'amschat' not found"
         fi
         
         # Check node_modules

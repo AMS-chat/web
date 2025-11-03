@@ -1,7 +1,7 @@
 -- Create database
-CREATE DATABASE kcychat;
+CREATE DATABASE amschat;
 
-\c kcychat;
+\c amschat;
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

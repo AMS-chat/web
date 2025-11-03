@@ -7,7 +7,7 @@ set -e
 
 SERVER_IP=$1
 SSH_USER=${2:-root}
-APP_NAME="kcy-chat"
+APP_NAME="ams-chat"
 APP_DIR="/var/www/$APP_NAME"
 REPO_URL="YOUR_GIT_REPO_URL"  # Update this!
 
@@ -33,7 +33,7 @@ remote_exec "curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 
 # 2. Setup PostgreSQL
 echo "🗄️  Setting up PostgreSQL..."
-remote_exec "sudo -u postgres psql -c \"CREATE DATABASE kcychat;\" || true"
+remote_exec "sudo -u postgres psql -c \"CREATE DATABASE amschat;\" || true"
 
 # 3. Clone or pull repository
 echo "📥 Cloning/updating repository..."
@@ -49,7 +49,7 @@ remote_exec "cd $APP_DIR && npm install --production"
 
 # 5. Setup database
 echo "🗄️  Setting up database schema..."
-remote_exec "cd $APP_DIR && sudo -u postgres psql -d kcychat -f db_setup.sql"
+remote_exec "cd $APP_DIR && sudo -u postgres psql -d amschat -f db_setup.sql"
 
 # 6. Check .env file
 echo "⚙️  Checking .env configuration..."

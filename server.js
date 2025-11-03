@@ -528,7 +528,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════╗
-║     🚀 KCY Chat Server Started         ║
+║     🚀 AMS Chat Server Started         ║
 ╠════════════════════════════════════════╣
 ║  Port: ${PORT.toString().padEnd(31)}  ║
 ║  Env:  ${(process.env.NODE_ENV || 'development').padEnd(31)}  ║

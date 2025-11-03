@@ -1,10 +1,10 @@
-# 🎉 KCY Chat v2.0 - ГОТОВО!
+# 🎉 AMS Chat v2.0 - ГОТОВО!
 
 ## ✅ Създадено
 
 ### 📁 Файлова структура
 ```
-kcy-chat-improved/
+ams-chat-improved/
 │
 ├── 📄 Backend
 │   ├── server.js                 # Подобрен сървър с security & Stripe
@@ -88,7 +88,7 @@ kcy-chat-improved/
 
 1. **Инсталация:**
 ```bash
-cd kcy-chat-improved
+cd ams-chat-improved
 npm install
 ```
 
@@ -147,9 +147,9 @@ npm run dev
 ### След deployment:
 ```bash
 ssh root@YOUR_SERVER_IP
-cd /var/www/kcy-chat
+cd /var/www/ams-chat
 nano .env           # Добави production данни
-pm2 restart kcy-chat
+pm2 restart ams-chat
 certbot --nginx -d yourdomain.com  # SSL
 ```
 
@@ -258,7 +258,7 @@ certbot --nginx -d yourdomain.com  # SSL
 systemctl status postgresql
 
 # Test connection
-psql -U postgres -d kcychat
+psql -U postgres -d amschat
 ```
 
 ### WebSocket не работи
@@ -294,10 +294,10 @@ nginx -t
 ./dev.sh check
 
 # View logs
-pm2 logs kcy-chat
+pm2 logs ams-chat
 
 # Restart server
-pm2 restart kcy-chat
+pm2 restart ams-chat
 
 # Database backup
 ./dev.sh db:backup
@@ -330,7 +330,7 @@ pm2 restart kcy-chat
 
 ### 1. Local Testing (30 min)
 ```bash
-cd kcy-chat-improved
+cd ams-chat-improved
 npm install
 ./dev.sh db:setup
 cp .env.example .env
@@ -343,8 +343,8 @@ npm run dev
 ```bash
 ./deploy.sh YOUR_SERVER_IP
 ssh root@YOUR_SERVER_IP
-nano /var/www/kcy-chat/.env  # Production config
-pm2 restart kcy-chat
+nano /var/www/ams-chat/.env  # Production config
+pm2 restart ams-chat
 certbot --nginx -d yourdomain.com
 ```
 
@@ -408,7 +408,7 @@ certbot --nginx -d yourdomain.com
 ## ✅ Всичко е готово!
 
 ### Файлове на разположение:
-📁 **kcy-chat-improved/** - Целият проект  
+📁 **ams-chat-improved/** - Целият проект  
 📄 **QUICKSTART.md** - Бърз старт гайд  
 📄 **README.md** - Пълна документация  
 📄 **SECURITY.md** - Security guidelines  

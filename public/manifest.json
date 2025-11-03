@@ -1,6 +1,6 @@
 {
-  "name": "KCY Chat - Secure Messaging",
-  "short_name": "KCY Chat",
+  "name": "AMS Chat - Secure Messaging",
+  "short_name": "AMS Chat",
   "description": "Secure anonymous messaging with end-to-end encryption",
   "start_url": "/",
   "display": "standalone",

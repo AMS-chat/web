@@ -1,4 +1,4 @@
-# 📚 KCY Chat v2.0 - Documentation Index
+# 📚 AMS Chat v2.0 - Documentation Index
 
 ## 🚀 Quick Navigation
 
@@ -110,7 +110,7 @@
 
 #### Monitor Application
 📄 [README.md](./README.md) → "Monitoring"  
-🔧 Use: `pm2 logs kcy-chat`
+🔧 Use: `pm2 logs ams-chat`
 
 #### Troubleshoot Issues
 📄 [PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md) → "Common Issues"  
@@ -140,15 +140,15 @@
 ### Production
 ```bash
 ./deploy.sh SERVER_IP  # Deploy to server
-pm2 logs kcy-chat      # View logs
-pm2 restart kcy-chat   # Restart app
+pm2 logs ams-chat      # View logs
+pm2 restart ams-chat   # Restart app
 pm2 monit              # Monitor resources
 ```
 
 ### Database
 ```bash
 ./dev.sh db:backup     # Backup database
-psql -U postgres -d kcychat  # Connect to DB
+psql -U postgres -d amschat  # Connect to DB
 ```
 
 ---
@@ -248,7 +248,7 @@ All customization points are documented in **[README.md](./README.md)**
 ### Have Questions?
 1. Check documentation (you're here!)
 2. Run `./dev.sh check` for diagnostics
-3. Review logs: `pm2 logs kcy-chat`
+3. Review logs: `pm2 logs ams-chat`
 4. Check GitHub Issues (if published)
 
 ### Found a Bug?
@@ -293,5 +293,5 @@ Before asking for help, verify:
 ---
 
 *Last updated: 2025-11-03*  
-*Project: KCY Chat v2.0*  
+*Project: AMS Chat v2.0*  
 *Documentation: Complete*

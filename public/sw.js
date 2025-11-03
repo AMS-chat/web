@@ -1,5 +1,5 @@
-const CACHE_NAME = 'kcy-chat-v2.0';
-const DYNAMIC_CACHE = 'kcy-chat-dynamic-v2.0';
+const CACHE_NAME = 'ams-chat-v2.0';
+const DYNAMIC_CACHE = 'ams-chat-dynamic-v2.0';
 
 const STATIC_ASSETS = [
   '/',
@@ -195,7 +195,7 @@ self.addEventListener('push', function(event) {
     };
     
     event.waitUntil(
-      self.registration.showNotification(data.title || 'KCY Chat', options)
+      self.registration.showNotification(data.title || 'AMS Chat', options)
     );
   }
 });

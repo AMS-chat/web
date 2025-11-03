@@ -1,4 +1,4 @@
-# CHANGELOG - KCY Chat v2.0
+# CHANGELOG - AMS Chat v2.0
 
 ## 🎉 Version 2.0 (2025-11-03) - Major Upgrade
 
@@ -232,12 +232,12 @@
 
 1. **Backup v1.0 database:**
    ```bash
-   pg_dump kcychat > kcychat_v1_backup.sql
+   pg_dump amschat > amschat_v1_backup.sql
    ```
 
 2. **Stop v1.0 server:**
    ```bash
-   pm2 stop kcy-chat
+   pm2 stop ams-chat
    ```
 
 3. **Run v2.0 database setup:**
@@ -256,7 +256,7 @@
    ```bash
    git pull
    npm install
-   pm2 restart kcy-chat
+   pm2 restart ams-chat
    ```
 
 6. **Test thoroughly before going live**
