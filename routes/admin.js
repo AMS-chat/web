@@ -4,6 +4,20 @@ const { hashPassword, verifyPassword } = require('../utils/password');
 function createAdminRoutes(db) {
   const router = express.Router();
 
+  // Middleware: Check admin IP
+  router.use((req, res, next) => {
+    const clientIP = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').split(',')[0].trim();
+    const allowedIPs = (process.env.ADMIN_ALLOWED_IPS || '127.0.0.1,::1').split(',').map(ip => ip.trim());
+    
+    if (!allowedIPs.includes(clientIP)) {
+      console.log(`❌ Admin access denied for IP: ${clientIP}`);
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    console.log(`✅ Admin access granted for IP: ${clientIP}`);
+    next();
+  });
+
   // Admin login
   router.post('/login', async (req, res) => {
     try {
@@ -41,32 +55,103 @@ function createAdminRoutes(db) {
     }
   });
 
-  // Page 1: Flagged conversations with bulk block
+  // Page 1: Flagged users (критични думи) с ПЪЛНА търсачка
   router.get('/flagged-users', (req, res) => {
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = 10;
       const offset = (page - 1) * limit;
 
-      // Get unique users who have flagged conversations
-      const users = db.prepare(`
+      // Search filters
+      const { search, gender, country, city, village, street, workplace, isBlocked, heightMin, heightMax, weightMin, weightMax } = req.query;
+
+      let query = `
         SELECT DISTINCT 
-          u.phone, u.full_name, u.gender, u.is_blocked, u.paid_until,
+          u.id, u.phone, u.full_name, u.gender, u.height_cm, u.weight_kg, 
+          u.country, u.city, u.village, u.street, u.workplace,
+          u.is_blocked, u.paid_until, u.report_count,
           COUNT(DISTINCT fc.id) as flagged_count
         FROM users u
-        INNER JOIN flagged_conversations fc ON (u.phone = fc.phone1 OR u.phone = fc.phone2)
+        INNER JOIN flagged_conversations fc ON (u.id = fc.user_id1 OR u.id = fc.user_id2)
         WHERE fc.reviewed = 0
-        GROUP BY u.phone
-        ORDER BY flagged_count DESC
-        LIMIT ? OFFSET ?
-      `).all(limit, offset);
+      `;
 
-      const total = db.prepare(`
-        SELECT COUNT(DISTINCT u.phone) as count
+      const params = [];
+
+      if (search) {
+        query += ` AND (u.full_name LIKE ? OR u.phone LIKE ?)`;
+        params.push(`%${search}%`, `%${search}%`);
+      }
+
+      if (gender) {
+        query += ` AND u.gender = ?`;
+        params.push(gender);
+      }
+
+      if (country) {
+        query += ` AND u.country LIKE ?`;
+        params.push(`%${country}%`);
+      }
+
+      if (city) {
+        query += ` AND u.city LIKE ?`;
+        params.push(`%${city}%`);
+      }
+
+      if (village) {
+        query += ` AND u.village LIKE ?`;
+        params.push(`%${village}%`);
+      }
+
+      if (street) {
+        query += ` AND u.street LIKE ?`;
+        params.push(`%${street}%`);
+      }
+
+      if (workplace) {
+        query += ` AND u.workplace LIKE ?`;
+        params.push(`%${workplace}%`);
+      }
+
+      if (isBlocked !== undefined) {
+        query += ` AND u.is_blocked = ?`;
+        params.push(isBlocked === 'true' ? 1 : 0);
+      }
+
+      if (heightMin) {
+        query += ` AND u.height_cm >= ?`;
+        params.push(parseInt(heightMin));
+      }
+
+      if (heightMax) {
+        query += ` AND u.height_cm <= ?`;
+        params.push(parseInt(heightMax));
+      }
+
+      if (weightMin) {
+        query += ` AND u.weight_kg >= ?`;
+        params.push(parseInt(weightMin));
+      }
+
+      if (weightMax) {
+        query += ` AND u.weight_kg <= ?`;
+        params.push(parseInt(weightMax));
+      }
+
+      query += ` GROUP BY u.id ORDER BY flagged_count DESC LIMIT ? OFFSET ?`;
+      params.push(limit, offset);
+
+      const users = db.prepare(query).all(...params);
+
+      // Count total
+      let countQuery = `
+        SELECT COUNT(DISTINCT u.id) as count
         FROM users u
-        INNER JOIN flagged_conversations fc ON (u.phone = fc.phone1 OR u.phone = fc.phone2)
+        INNER JOIN flagged_conversations fc ON (u.id = fc.user_id1 OR u.id = fc.user_id2)
         WHERE fc.reviewed = 0
-      `).get().count;
+      `;
+      const countParams = params.slice(0, -2); // Remove limit and offset
+      const total = db.prepare(countQuery).get(...countParams)?.count || 0;
 
       res.json({
         users,
@@ -83,58 +168,18 @@ function createAdminRoutes(db) {
     }
   });
 
-  // Block user(s)
-  router.post('/block-users', (req, res) => {
-    try {
-      const { phones, reason } = req.body;
-
-      if (!phones || !Array.isArray(phones)) {
-        return res.status(400).json({ error: 'Phones array required' });
-      }
-
-      const placeholders = phones.map(() => '?').join(',');
-      db.prepare(`UPDATE users SET is_blocked = 1, blocked_reason = ? WHERE phone IN (${placeholders})`)
-        .run(reason || 'Admin blocked', ...phones);
-
-      res.json({ success: true, blocked: phones.length });
-    } catch (err) {
-      console.error('Block users error:', err);
-      res.status(500).json({ error: 'Server error' });
-    }
-  });
-
-  // Unblock user
-  router.post('/unblock-user', (req, res) => {
-    try {
-      const { phone } = req.body;
-
-      if (!phone) {
-        return res.status(400).json({ error: 'Phone required' });
-      }
-
-      db.prepare(`
-        UPDATE users 
-        SET is_blocked = 0, blocked_reason = NULL, failed_login_attempts = 0 
-        WHERE phone = ?
-      `).run(phone);
-
-      res.json({ success: true });
-    } catch (err) {
-      console.error('Unblock user error:', err);
-      res.status(500).json({ error: 'Server error' });
-    }
-  });
-
-  // Page 2: All users with search and payment management
+  // Page 2: All users с ПЪЛНА търсачка
   router.get('/all-users', (req, res) => {
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = 50;
       const offset = (page - 1) * limit;
-      const search = req.query.search || '';
+
+      const { search, gender, country, city, village, street, workplace, isBlocked, heightMin, heightMax, weightMin, weightMax } = req.query;
 
       let query = `
-        SELECT phone, full_name, gender, height_cm, city, village, street, 
+        SELECT id, phone, full_name, gender, height_cm, weight_kg,
+               country, city, village, street, workplace,
                paid_until, is_blocked, created_at, last_login
         FROM users
         WHERE 1=1
@@ -147,15 +192,85 @@ function createAdminRoutes(db) {
         params.push(`%${search}%`, `%${search}%`);
       }
 
+      if (gender) {
+        query += ` AND gender = ?`;
+        params.push(gender);
+      }
+
+      if (country) {
+        query += ` AND country LIKE ?`;
+        params.push(`%${country}%`);
+      }
+
+      if (city) {
+        query += ` AND city LIKE ?`;
+        params.push(`%${city}%`);
+      }
+
+      if (village) {
+        query += ` AND village LIKE ?`;
+        params.push(`%${village}%`);
+      }
+
+      if (street) {
+        query += ` AND street LIKE ?`;
+        params.push(`%${street}%`);
+      }
+
+      if (workplace) {
+        query += ` AND workplace LIKE ?`;
+        params.push(`%${workplace}%`);
+      }
+
+      if (isBlocked !== undefined) {
+        query += ` AND is_blocked = ?`;
+        params.push(isBlocked === 'true' ? 1 : 0);
+      }
+
+      if (heightMin) {
+        query += ` AND height_cm >= ?`;
+        params.push(parseInt(heightMin));
+      }
+
+      if (heightMax) {
+        query += ` AND height_cm <= ?`;
+        params.push(parseInt(heightMax));
+      }
+
+      if (weightMin) {
+        query += ` AND weight_kg >= ?`;
+        params.push(parseInt(weightMin));
+      }
+
+      if (weightMax) {
+        query += ` AND weight_kg <= ?`;
+        params.push(parseInt(weightMax));
+      }
+
       query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
       params.push(limit, offset);
 
       const users = db.prepare(query).all(...params);
 
-      const countQuery = `SELECT COUNT(*) as count FROM users WHERE 1=1` + 
-        (search ? ` AND (phone LIKE ? OR full_name LIKE ?)` : '');
-      const countParams = search ? [`%${search}%`, `%${search}%`] : [];
-      const total = db.prepare(countQuery).get(...countParams).count;
+      // Count total
+      let countQuery = 'SELECT COUNT(*) as count FROM users WHERE 1=1';
+      const countParams = params.slice(0, -2);
+      // Rebuild count query with same filters
+      let countIndex = 0;
+      if (search) { countQuery += ' AND (phone LIKE ? OR full_name LIKE ?)'; countIndex += 2; }
+      if (gender) { countQuery += ' AND gender = ?'; countIndex++; }
+      if (country) { countQuery += ' AND country LIKE ?'; countIndex++; }
+      if (city) { countQuery += ' AND city LIKE ?'; countIndex++; }
+      if (village) { countQuery += ' AND village LIKE ?'; countIndex++; }
+      if (street) { countQuery += ' AND street LIKE ?'; countIndex++; }
+      if (workplace) { countQuery += ' AND workplace LIKE ?'; countIndex++; }
+      if (isBlocked !== undefined) { countQuery += ' AND is_blocked = ?'; countIndex++; }
+      if (heightMin) { countQuery += ' AND height_cm >= ?'; countIndex++; }
+      if (heightMax) { countQuery += ' AND height_cm <= ?'; countIndex++; }
+      if (weightMin) { countQuery += ' AND weight_kg >= ?'; countIndex++; }
+      if (weightMax) { countQuery += ' AND weight_kg <= ?'; countIndex++; }
+
+      const total = db.prepare(countQuery).get(...countParams)?.count || 0;
 
       res.json({
         users,
@@ -172,93 +287,104 @@ function createAdminRoutes(db) {
     }
   });
 
-  // Update user payment (admin only)
-  router.post('/update-payment', (req, res) => {
-    try {
-      const { phone, months } = req.body;
-
-      if (!phone || !months) {
-        return res.status(400).json({ error: 'Phone and months required' });
-      }
-
-      const user = db.prepare('SELECT paid_until FROM users WHERE phone = ?').get(phone);
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      // Calculate new paid_until
-      let paidUntil = new Date(user.paid_until);
-      if (paidUntil < new Date()) {
-        paidUntil = new Date();
-      }
-      paidUntil.setMonth(paidUntil.getMonth() + parseInt(months));
-
-      db.prepare('UPDATE users SET paid_until = ? WHERE phone = ?')
-        .run(paidUntil.toISOString(), phone);
-
-      // Log manual payment
-      db.prepare(`
-        INSERT INTO payment_logs (phone, amount, currency, status, payment_type, months)
-        VALUES (?, 0, 'MANUAL', 'succeeded', 'admin_manual', ?)
-      `).run(phone, months);
-
-      res.json({ success: true, newPaidUntil: paidUntil.toISOString() });
-    } catch (err) {
-      console.error('Update payment error:', err);
-      res.status(500).json({ error: 'Server error' });
-    }
-  });
-
-  // Mark as unpaid
-  router.post('/mark-unpaid', (req, res) => {
-    try {
-      const { phone } = req.body;
-
-      if (!phone) {
-        return res.status(400).json({ error: 'Phone required' });
-      }
-
-      const pastDate = new Date('2000-01-01').toISOString();
-      db.prepare('UPDATE users SET paid_until = ? WHERE phone = ?').run(pastDate, phone);
-
-      res.json({ success: true });
-    } catch (err) {
-      console.error('Mark unpaid error:', err);
-      res.status(500).json({ error: 'Server error' });
-    }
-  });
-
-  // Page 4: Users table with all messages
+  // Page 4: Users table with messages + ПЪЛНА търсачка
   router.get('/users-with-messages', (req, res) => {
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = 20;
       const offset = (page - 1) * limit;
 
-      const users = db.prepare(`
-        SELECT phone, full_name, gender, height_cm, city, village, street
-        FROM users
-        ORDER BY full_name
-        LIMIT ? OFFSET ?
-      `).all(limit, offset);
+      const { search, gender, country, city, village, street, workplace, isBlocked, heightMin, heightMax, weightMin, weightMax } = req.query;
 
-      // For each user, get all their conversations grouped by contact
+      let query = `
+        SELECT id, phone, full_name, gender, height_cm, weight_kg,
+               country, city, village, street, workplace, is_blocked
+        FROM users
+        WHERE 1=1
+      `;
+
+      const params = [];
+
+      if (search) {
+        query += ` AND (phone LIKE ? OR full_name LIKE ?)`;
+        params.push(`%${search}%`, `%${search}%`);
+      }
+
+      if (gender) {
+        query += ` AND gender = ?`;
+        params.push(gender);
+      }
+
+      if (country) {
+        query += ` AND country LIKE ?`;
+        params.push(`%${country}%`);
+      }
+
+      if (city) {
+        query += ` AND city LIKE ?`;
+        params.push(`%${city}%`);
+      }
+
+      if (village) {
+        query += ` AND village LIKE ?`;
+        params.push(`%${village}%`);
+      }
+
+      if (street) {
+        query += ` AND street LIKE ?`;
+        params.push(`%${street}%`);
+      }
+
+      if (workplace) {
+        query += ` AND workplace LIKE ?`;
+        params.push(`%${workplace}%`);
+      }
+
+      if (isBlocked !== undefined) {
+        query += ` AND is_blocked = ?`;
+        params.push(isBlocked === 'true' ? 1 : 0);
+      }
+
+      if (heightMin) {
+        query += ` AND height_cm >= ?`;
+        params.push(parseInt(heightMin));
+      }
+
+      if (heightMax) {
+        query += ` AND height_cm <= ?`;
+        params.push(parseInt(heightMax));
+      }
+
+      if (weightMin) {
+        query += ` AND weight_kg >= ?`;
+        params.push(parseInt(weightMin));
+      }
+
+      if (weightMax) {
+        query += ` AND weight_kg <= ?`;
+        params.push(parseInt(weightMax));
+      }
+
+      query += ` ORDER BY full_name LIMIT ? OFFSET ?`;
+      params.push(limit, offset);
+
+      const users = db.prepare(query).all(...params);
+
+      // For each user, get all their conversations
       const usersWithMessages = users.map(user => {
         const conversations = db.prepare(`
           SELECT 
-            CASE WHEN from_phone = ? THEN to_phone ELSE from_phone END as contact_phone,
-            GROUP_CONCAT(
-              CASE WHEN from_phone = ? THEN 'Me' ELSE contact_phone END || ': ' || text, 
-              '\n'
-            ) as messages
+            CASE WHEN from_user_id = ? THEN to_user_id ELSE from_user_id END as contact_id,
+            GROUP_CONCAT(text, '\n') as messages
           FROM messages
-          WHERE (from_phone = ? OR to_phone = ?) AND text IS NOT NULL
-          GROUP BY contact_phone
-        `).all(user.phone, user.phone, user.phone, user.phone);
+          WHERE (from_user_id = ? OR to_user_id = ?) AND text IS NOT NULL
+          GROUP BY contact_id
+        `).all(user.id, user.id, user.id);
 
-        const allMessages = conversations.map(c => 
-          `━━━ With ${c.contact_phone} ━━━\n${c.messages}`
-        ).join('\n\n');
+        const allMessages = conversations.map(c => {
+          const contact = db.prepare('SELECT phone FROM users WHERE id = ?').get(c.contact_id);
+          return `━━━ With ${contact?.phone || 'Unknown'} ━━━\n${c.messages}`;
+        }).join('\n\n');
 
         return {
           ...user,
@@ -266,7 +392,23 @@ function createAdminRoutes(db) {
         };
       });
 
-      const total = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+      // Count total (same filters)
+      let countQuery = 'SELECT COUNT(*) as count FROM users WHERE 1=1';
+      const countParams = params.slice(0, -2);
+      if (search) countQuery += ' AND (phone LIKE ? OR full_name LIKE ?)';
+      if (gender) countQuery += ' AND gender = ?';
+      if (country) countQuery += ' AND country LIKE ?';
+      if (city) countQuery += ' AND city LIKE ?';
+      if (village) countQuery += ' AND village LIKE ?';
+      if (street) countQuery += ' AND street LIKE ?';
+      if (workplace) countQuery += ' AND workplace LIKE ?';
+      if (isBlocked !== undefined) countQuery += ' AND is_blocked = ?';
+      if (heightMin) countQuery += ' AND height_cm >= ?';
+      if (heightMax) countQuery += ' AND height_cm <= ?';
+      if (weightMin) countQuery += ' AND weight_kg >= ?';
+      if (weightMax) countQuery += ' AND weight_kg <= ?';
+
+      const total = db.prepare(countQuery).get(...countParams)?.count || 0;
 
       res.json({
         users: usersWithMessages,
@@ -283,17 +425,18 @@ function createAdminRoutes(db) {
     }
   });
 
-  // Page 5: Detailed user view
-  router.get('/user-details/:phone', (req, res) => {
+  // Page 5: User details (from Page 4 edit button)
+  router.get('/user-details/:userId', (req, res) => {
     try {
-      const { phone } = req.params;
+      const { userId } = req.params;
 
       // Get main user details
       const user = db.prepare(`
-        SELECT phone, full_name, gender, height_cm, weight_kg, city, village, street, workplace,
+        SELECT id, phone, full_name, gender, height_cm, weight_kg, 
+               country, city, village, street, workplace,
                paid_until, is_blocked, blocked_reason, created_at, last_login
-        FROM users WHERE phone = ?
-      `).get(phone);
+        FROM users WHERE id = ?
+      `).get(userId);
 
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
@@ -302,47 +445,52 @@ function createAdminRoutes(db) {
       // Check if has flagged conversations
       const flaggedCount = db.prepare(`
         SELECT COUNT(*) as count FROM flagged_conversations 
-        WHERE (phone1 = ? OR phone2 = ?) AND reviewed = 0
-      `).get(phone, phone).count;
+        WHERE (user_id1 = ? OR user_id2 = ?) AND reviewed = 0
+      `).get(userId, userId)?.count || 0;
 
       user.hasFlaggedConversations = flaggedCount > 0;
       user.flaggedCount = flaggedCount;
 
-      // Get all contacts with their details and conversations
+      // Get all contacts with details
       const contacts = db.prepare(`
         SELECT DISTINCT
-          CASE WHEN phone1 = ? THEN phone2 ELSE phone1 END as contact_phone,
-          CASE WHEN phone1 = ? THEN custom_name_by_phone1 ELSE custom_name_by_phone2 END as custom_name
+          CASE WHEN user_id1 = ? THEN user_id2 ELSE user_id1 END as contact_id,
+          CASE WHEN user_id1 = ? THEN custom_name_by_user1 ELSE custom_name_by_user2 END as custom_name
         FROM friends
-        WHERE phone1 = ? OR phone2 = ?
-      `).all(phone, phone, phone, phone);
+        WHERE user_id1 = ? OR user_id2 = ?
+      `).all(userId, userId, userId, userId);
 
       const contactDetails = contacts.map(contact => {
         // Get contact user details
         const contactUser = db.prepare(`
-          SELECT full_name, gender, city, village, street, paid_until, is_blocked
-          FROM users WHERE phone = ?
-        `).get(contact.contact_phone);
+          SELECT full_name, gender, country, city, village, street, paid_until, is_blocked
+          FROM users WHERE id = ?
+        `).get(contact.contact_id);
 
-        // Get conversation
+        // Get conversation - CAN BE EDITED!
         const messages = db.prepare(`
-          SELECT from_phone, text, created_at
+          SELECT id, from_user_id, text, created_at
           FROM messages
-          WHERE ((from_phone = ? AND to_phone = ?) OR (from_phone = ? AND to_phone = ?))
+          WHERE ((from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?))
             AND text IS NOT NULL
           ORDER BY created_at DESC
           LIMIT 100
-        `).all(phone, contact.contact_phone, contact.contact_phone, phone);
+        `).all(userId, contact.contact_id, contact.contact_id, userId);
 
-        const conversation = messages.reverse().map(m => 
-          `[${m.created_at}] ${m.from_phone === phone ? user.full_name : (contactUser?.full_name || contact.contact_phone)}: ${m.text}`
-        ).join('\n');
+        const conversation = messages.reverse().map(m => ({
+          messageId: m.id,
+          text: m.text,
+          from: m.from_user_id === parseInt(userId) ? user.full_name : (contactUser?.full_name || 'Unknown'),
+          timestamp: m.created_at,
+          editable: true // Admin can edit!
+        }));
 
         return {
-          phone: contact.contact_phone,
+          userId: contact.contact_id,
           customName: contact.custom_name,
           fullName: contactUser?.full_name || 'Unknown',
           gender: contactUser?.gender || 'Unknown',
+          country: contactUser?.country || '',
           city: contactUser?.city || '',
           village: contactUser?.village || '',
           street: contactUser?.street || '',
@@ -363,40 +511,122 @@ function createAdminRoutes(db) {
     }
   });
 
-  // Original endpoints (keep for compatibility)
-  router.get('/flagged-conversations', (req, res) => {
+  // Edit message text (Page 5)
+  router.post('/edit-message', (req, res) => {
     try {
-      const flagged = db.prepare(`
-        SELECT 
-          fc.*,
-          u1.full_name as phone1_name,
-          u2.full_name as phone2_name
-        FROM flagged_conversations fc
-        LEFT JOIN users u1 ON fc.phone1 = u1.phone
-        LEFT JOIN users u2 ON fc.phone2 = u2.phone
-        WHERE reviewed = 0
-        ORDER BY flagged_at DESC
-        LIMIT 100
-      `).all();
+      const { messageId, newText } = req.body;
 
-      res.json({ conversations: flagged });
-    } catch (err) {
-      console.error('Get flagged error:', err);
-      res.status(500).json({ error: 'Server error' });
-    }
-  });
+      if (!messageId || !newText) {
+        return res.status(400).json({ error: 'Message ID and new text required' });
+      }
 
-  router.post('/review/:id', (req, res) => {
-    try {
-      const { id } = req.params;
-      db.prepare('UPDATE flagged_conversations SET reviewed = 1 WHERE id = ?').run(id);
+      // Simply update the text - NO original_text saved!
+      db.prepare('UPDATE messages SET text = ? WHERE id = ?').run(newText, messageId);
+
       res.json({ success: true });
     } catch (err) {
-      console.error('Review error:', err);
+      console.error('Edit message error:', err);
       res.status(500).json({ error: 'Server error' });
     }
   });
 
+  // Block user(s)
+  router.post('/block-users', (req, res) => {
+    try {
+      const { userIds, reason } = req.body;
+
+      if (!userIds || !Array.isArray(userIds)) {
+        return res.status(400).json({ error: 'User IDs array required' });
+      }
+
+      const placeholders = userIds.map(() => '?').join(',');
+      db.prepare(`UPDATE users SET is_blocked = 1, blocked_reason = ? WHERE id IN (${placeholders})`)
+        .run(reason || 'Admin blocked', ...userIds);
+
+      res.json({ success: true, blocked: userIds.length });
+    } catch (err) {
+      console.error('Block users error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Unblock user
+  router.post('/unblock-user', (req, res) => {
+    try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID required' });
+      }
+
+      db.prepare(`
+        UPDATE users 
+        SET is_blocked = 0, blocked_reason = NULL, failed_login_attempts = 0 
+        WHERE id = ?
+      `).run(userId);
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Unblock user error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Update user payment (admin can change paid_until)
+  router.post('/update-payment', (req, res) => {
+    try {
+      const { userId, months } = req.body;
+
+      if (!userId || !months) {
+        return res.status(400).json({ error: 'User ID and months required' });
+      }
+
+      const user = db.prepare('SELECT paid_until FROM users WHERE id = ?').get(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      let paidUntil = new Date(user.paid_until);
+      if (paidUntil < new Date()) {
+        paidUntil = new Date();
+      }
+      paidUntil.setMonth(paidUntil.getMonth() + parseInt(months));
+
+      db.prepare('UPDATE users SET paid_until = ? WHERE id = ?')
+        .run(paidUntil.toISOString(), userId);
+
+      db.prepare(`
+        INSERT INTO payment_logs (user_id, phone, amount, currency, status, payment_type, months)
+        VALUES (?, (SELECT phone FROM users WHERE id = ?), 0, 'MANUAL', 'succeeded', 'admin_manual', ?)
+      `).run(userId, userId, months);
+
+      res.json({ success: true, newPaidUntil: paidUntil.toISOString() });
+    } catch (err) {
+      console.error('Update payment error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Mark as unpaid
+  router.post('/mark-unpaid', (req, res) => {
+    try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID required' });
+      }
+
+      const pastDate = new Date('2000-01-01').toISOString();
+      db.prepare('UPDATE users SET paid_until = ? WHERE id = ?').run(pastDate, userId);
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Mark unpaid error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Critical words management
   router.get('/critical-words', (req, res) => {
     try {
       const words = db.prepare('SELECT * FROM critical_words ORDER BY word').all();
@@ -435,16 +665,17 @@ function createAdminRoutes(db) {
     }
   });
 
+  // Stats
   router.get('/stats', (req, res) => {
     try {
       const stats = {
-        totalUsers: db.prepare('SELECT COUNT(*) as count FROM users').get().count,
-        activeUsers: db.prepare('SELECT COUNT(*) as count FROM users WHERE paid_until > datetime("now")').get().count,
-        blockedUsers: db.prepare('SELECT COUNT(*) as count FROM users WHERE is_blocked = 1').get().count,
-        totalMessages: db.prepare('SELECT COUNT(*) as count FROM messages').get().count,
-        flaggedConversations: db.prepare('SELECT COUNT(*) as count FROM flagged_conversations WHERE reviewed = 0').get().count,
-        criticalWords: db.prepare('SELECT COUNT(*) as count FROM critical_words').get().count,
-        totalRevenue: db.prepare('SELECT SUM(amount) as total FROM payment_logs WHERE status = "succeeded"').get().total || 0
+        totalUsers: db.prepare('SELECT COUNT(*) as count FROM users').get()?.count || 0,
+        activeUsers: db.prepare('SELECT COUNT(*) as count FROM users WHERE paid_until > datetime("now")').get()?.count || 0,
+        blockedUsers: db.prepare('SELECT COUNT(*) as count FROM users WHERE is_blocked = 1').get()?.count || 0,
+        totalMessages: db.prepare('SELECT COUNT(*) as count FROM messages').get()?.count || 0,
+        flaggedConversations: db.prepare('SELECT COUNT(*) as count FROM flagged_conversations WHERE reviewed = 0').get()?.count || 0,
+        criticalWords: db.prepare('SELECT COUNT(*) as count FROM critical_words').get()?.count || 0,
+        totalRevenue: db.prepare('SELECT SUM(amount) as total FROM payment_logs WHERE status = "succeeded"').get()?.total || 0
       };
 
       res.json(stats);

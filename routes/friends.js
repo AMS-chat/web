@@ -4,6 +4,71 @@ const { validatePhone, validateCustomName } = require('../utils/validation');
 function createFriendsRoutes(db) {
   const router = express.Router();
 
+  // Search users to add as friends - FULL SEARCH
+  router.get('/search', (req, res) => {
+    try {
+      const { phone, country, gender, heightMin, heightMax, weightMin, weightMax } = req.query;
+
+      if (!phone && !country && !gender && !heightMin && !heightMax && !weightMin && !weightMax) {
+        return res.status(400).json({ error: 'At least one search parameter required' });
+      }
+
+      let query = `
+        SELECT id, phone, full_name, gender, height_cm, weight_kg, 
+               country, city, village, street
+        FROM users
+        WHERE paid_until > datetime('now')
+      `;
+
+      const params = [];
+
+      if (phone) {
+        query += ` AND phone LIKE ?`;
+        params.push(`%${phone}%`);
+      }
+
+      if (country) {
+        query += ` AND country LIKE ?`;
+        params.push(`%${country}%`);
+      }
+
+      if (gender) {
+        query += ` AND gender = ?`;
+        params.push(gender);
+      }
+
+      if (heightMin) {
+        query += ` AND height_cm >= ?`;
+        params.push(parseInt(heightMin));
+      }
+
+      if (heightMax) {
+        query += ` AND height_cm <= ?`;
+        params.push(parseInt(heightMax));
+      }
+
+      if (weightMin) {
+        query += ` AND weight_kg >= ?`;
+        params.push(parseInt(weightMin));
+      }
+
+      if (weightMax) {
+        query += ` AND weight_kg <= ?`;
+        params.push(parseInt(weightMax));
+      }
+
+      query += ` AND id != ? LIMIT 50`;
+      params.push(req.userId);
+
+      const users = db.prepare(query).all(...params);
+
+      res.json({ users });
+    } catch (err) {
+      console.error('Search users error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
   // Get friends list
   router.get('/', (req, res) => {
     try {
