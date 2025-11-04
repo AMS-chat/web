@@ -1,165 +1,856 @@
 <!DOCTYPE html>
 <html lang="bg">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Анонимен Чат</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#3B82F6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AMS Chat">
+  <meta name="description" content="Secure anonymous messaging with end-to-end encryption">
+  
+  <title>AMS Chat - Secure Anonymous Messaging</title>
+  
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://js.stripe.com/v3/"></script>
+  
+  <style>
+    * { 
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+    
+    body { 
+      overscroll-behavior-y: contain;
+      user-select: none;
+    }
+    
+    input, textarea {
+      user-select: text;
+    }
+    
+    .chat-scroll { 
+      scroll-behavior: smooth;
+    }
+    
+    .message-enter { 
+      animation: slideIn 0.2s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from { 
+        opacity: 0; 
+        transform: translateY(10px);
+      }
+      to { 
+        opacity: 1; 
+        transform: translateY(0);
+      }
+    }
+    
+    .spinner {
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #3B82F6;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .StripeElement {
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      transition: border-color 0.2s;
+    }
+    
+    .StripeElement--focus {
+      border-color: #3B82F6;
+    }
+    
+    .StripeElement--invalid {
+      border-color: #ef4444;
+    }
+  </style>
 </head>
-<body class="bg-gray-900 text-white">
-    <!-- Landing Page -->
-    <div id="landing" class="min-h-screen flex flex-col items-center justify-center px-4">
-        <div class="max-w-4xl w-full text-center">
-            <!-- Logo -->
-            <h1 class="text-6xl font-bold mb-4">📱 Анонимен Чат</h1>
-            <p class="text-2xl text-gray-400 mb-12">Истинска анонимност. Без проследяване.</p>
+<body class="bg-gray-50 overflow-hidden">
+  <div id="app"></div>
+  <div id="toast" class="fixed top-4 right-4 z-50 hidden"></div>
 
-            <!--價格 -->
-            <div class="bg-gray-800 rounded-lg p-8 mb-12 border-2 border-blue-500">
-                <div class="text-5xl font-bold mb-4">€5 / $5</div>
-                <div class="text-xl text-gray-400">на месец</div>
-            </div>
+  <script>
+    const API_URL = window.location.origin;
+    let stripe = null;
+    let stripeElements = null;
+    let cardElement = null;
 
-            <!-- Характеристики -->
-            <div class="grid md:grid-cols-2 gap-6 mb-12 text-left">
-                <!-- За какво е -->
-                <div class="bg-gray-800 rounded-lg p-6">
-                    <h3 class="text-2xl font-bold mb-4 text-green-400">✅ Как работи:</h3>
-                    <ul class="space-y-3 text-lg">
-                        <li>📞 <strong>Познати:</strong> Въвеждаш телефон на приятел → виждаш профила му → започваш чат</li>
-                        <li>💕 <strong>Запознанства:</strong> Търсиш по пол, ръст, тегло, държава → намираш интересен профил → започваш разговор</li>
-                        <li>📁 <strong>Файлове:</strong> Изпращаш снимки, документи до 100MB → другият сваля → файлът се трие автоматично</li>
-                        <li>🔄 <strong>История:</strong> Последни 5KB текст се пазят → старото се трие автоматично</li>
-                    </ul>
-                </div>
+    // Initialize Stripe
+    async function initStripe() {
+      try {
+        const response = await fetch(API_URL + '/api/stripe-key');
+        const data = await response.json();
+        stripe = Stripe(data.publishableKey);
+      } catch (err) {
+        console.error('Failed to initialize Stripe:', err);
+      }
+    }
 
-                <!-- Какво НЕ е -->
-                <div class="bg-gray-800 rounded-lg p-6">
-                    <h3 class="text-2xl font-bold mb-4 text-red-400">❌ Какво НЕ можеш:</h3>
-                    <ul class="space-y-3 text-lg">
-                        <li>🕵️ <strong>Детективска работа:</strong> НЕ можеш да търсиш по име, град, улица, работно място</li>
-                        <li>📝 <strong>Дългосрочна история:</strong> Старите съобщения се трият (само последни 5KB)</li>
-                        <li>📧 <strong>Верификация:</strong> Няма SMS/email потвърждение</li>
-                        <li>🔍 <strong>"Намери Юлия от О'шипка":</strong> Не можеш! Това не е детективско бюро!</li>
-                    </ul>
-                </div>
-            </div>
+    // State management
+    let state = {
+      screen: 'login',
+      phone: '',
+      token: null,
+      currentChat: null,
+      friends: [],
+      messages: {},
+      isPaid: false,
+      ws: null,
+      isLoading: false
+    };
 
-            <!-- Анонимност -->
-            <div class="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-8 mb-12">
-                <h3 class="text-3xl font-bold mb-4">🔒 Истинска Анонимност</h3>
-                <div class="grid md:grid-cols-3 gap-4 text-lg">
-                    <div>
-                        <div class="text-4xl mb-2">🚫</div>
-                        <div>Без SMS верификация</div>
-                    </div>
-                    <div>
-                        <div class="text-4xl mb-2">📧</div>
-                        <div>Без email адрес</div>
-                    </div>
-                    <div>
-                        <div class="text-4xl mb-2">🗑️</div>
-                        <div>Файлове се трият след сваляне</div>
-                    </div>
-                </div>
-            </div>
+    // Save state to localStorage
+    function saveState() {
+      try {
+        localStorage.setItem('kcy_phone', state.phone);
+        localStorage.setItem('kcy_token', state.token || '');
+      } catch (e) {
+        console.error('Failed to save state:', e);
+      }
+    }
 
-            <!-- Use Cases -->
-            <div class="bg-gray-800 rounded-lg p-8 mb-12">
-                <h3 class="text-3xl font-bold mb-6">🎯 Идеално за:</h3>
-                <div class="grid md:grid-cols-2 gap-6 text-left text-lg">
-                    <div>
-                        <div class="text-2xl mb-2">💼</div>
-                        <strong>Бизнес:</strong> Обсъждане на сделки без да оставяш следи
-                    </div>
-                    <div>
-                        <div class="text-2xl mb-2">💕</div>
-                        <strong>Запознанства:</strong> Търсиш по критерии, пишеш анонимно
-                    </div>
-                    <div>
-                        <div class="text-2xl mb-2">🤝</div>
-                        <strong>Приятели:</strong> Чат с познати без Facebook/WhatsApp
-                    </div>
-                    <div>
-                        <div class="text-2xl mb-2">📄</div>
-                        <strong>Файлове:</strong> Споделяш снимки/документи временно
-                    </div>
-                </div>
-            </div>
-
-            <!-- CTA Buttons -->
-            <div class="flex gap-4 justify-center">
-                <button onclick="showLogin()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg text-xl">
-                    Влез
-                </button>
-                <button onclick="showRegister()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-lg text-xl">
-                    Регистрация
-                </button>
-            </div>
-
-            <!-- Footer -->
-            <div class="mt-12 text-gray-500">
-                <p>Плащане с карта чрез Stripe</p>
-                <p class="text-sm mt-2">🇪🇺 ЕС: €5/месец | 🌍 Извън ЕС: $5/месец</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Login/Register forms (hidden initially) -->
-    <div id="login" class="hidden min-h-screen flex items-center justify-center px-4">
-        <div class="bg-gray-800 rounded-lg p-8 max-w-md w-full">
-            <h2 class="text-3xl font-bold mb-6">Вход</h2>
-            <form id="loginForm" class="space-y-4">
-                <input type="tel" id="loginPhone" placeholder="Телефон (напр. 0888123456)" class="w-full p-3 bg-gray-700 rounded" required>
-                <input type="password" id="loginPassword" placeholder="Парола" class="w-full p-3 bg-gray-700 rounded" required>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded font-bold">Влез</button>
-                <button type="button" onclick="showLanding()" class="w-full bg-gray-600 hover:bg-gray-700 py-3 rounded">Назад</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="register" class="hidden min-h-screen flex items-center justify-center px-4 py-8">
-        <div class="bg-gray-800 rounded-lg p-8 max-w-md w-full">
-            <h2 class="text-3xl font-bold mb-6">Регистрация</h2>
-            <form id="registerForm" class="space-y-4">
-                <input type="tel" id="regPhone" placeholder="Телефон" class="w-full p-3 bg-gray-700 rounded" required>
-                <input type="password" id="regPassword" placeholder="Парола (мин. 6 символа)" class="w-full p-3 bg-gray-700 rounded" required>
-                <input type="text" id="regName" placeholder="Име" class="w-full p-3 bg-gray-700 rounded" required>
-                <select id="regGender" class="w-full p-3 bg-gray-700 rounded" required>
-                    <option value="">Пол</option>
-                    <option value="male">Мъж</option>
-                    <option value="female">Жена</option>
-                </select>
-                <input type="number" id="regHeight" placeholder="Височина (см)" class="w-full p-3 bg-gray-700 rounded">
-                <input type="number" id="regWeight" placeholder="Тегло (кг)" class="w-full p-3 bg-gray-700 rounded">
-                <input type="text" id="regCountry" placeholder="Държава" class="w-full p-3 bg-gray-700 rounded">
-                <input type="text" id="regCity" placeholder="Град" class="w-full p-3 bg-gray-700 rounded">
-                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 py-3 rounded font-bold">Регистрация → Плащане</button>
-                <button type="button" onclick="showLanding()" class="w-full bg-gray-600 hover:bg-gray-700 py-3 rounded">Назад</button>
-            </form>
-        </div>
-    </div>
-
-    <script>
-        function showLanding() {
-            document.getElementById('landing').classList.remove('hidden');
-            document.getElementById('login').classList.add('hidden');
-            document.getElementById('register').classList.add('hidden');
+    // Load state from localStorage
+    function loadState() {
+      try {
+        const phone = localStorage.getItem('kcy_phone');
+        const token = localStorage.getItem('kcy_token');
+        
+        if (phone && token) {
+          state.phone = phone;
+          state.token = token;
+          return true;
         }
+      } catch (e) {
+        console.error('Failed to load state:', e);
+      }
+      return false;
+    }
 
-        function showLogin() {
-            document.getElementById('landing').classList.add('hidden');
-            document.getElementById('login').classList.remove('hidden');
-            document.getElementById('register').classList.add('hidden');
+    // Toast notifications
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      const colors = {
+        success: 'bg-green-500',
+        error: 'bg-red-500',
+        info: 'bg-blue-500',
+        warning: 'bg-yellow-500'
+      };
+      
+      toast.className = 'fixed top-4 right-4 z-50 px-6 py-3 rounded-lg text-white shadow-lg ' + colors[type];
+      toast.textContent = message;
+      toast.classList.remove('hidden');
+      
+      setTimeout(function() {
+        toast.classList.add('hidden');
+      }, 3000);
+    }
+
+    // WebSocket connection
+    function connectWebSocket(token) {
+      if (state.ws) {
+        state.ws.close();
+      }
+
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(protocol + '//' + window.location.host + '?token=' + token);
+      
+      ws.onopen = function() {
+        console.log('WebSocket connected');
+      };
+
+      ws.onmessage = function(event) {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.type === 'message') {
+            handleIncomingMessage(data);
+          } else if (data.type === 'sent') {
+            handleSentMessage(data);
+          } else if (data.type === 'error') {
+            showToast(data.message, 'error');
+          }
+        } catch (err) {
+          console.error('Failed to parse WebSocket message:', err);
         }
+      };
 
-        function showRegister() {
-            document.getElementById('landing').classList.add('hidden');
-            document.getElementById('login').classList.add('hidden');
-            document.getElementById('register').classList.remove('hidden');
+      ws.onerror = function(error) {
+        console.error('WebSocket error:', error);
+        showToast('Connection error', 'error');
+      };
+
+      ws.onclose = function() {
+        console.log('WebSocket disconnected');
+        setTimeout(function() {
+          if (state.token) {
+            connectWebSocket(state.token);
+          }
+        }, 5000);
+      };
+
+      state.ws = ws;
+    }
+
+    function handleIncomingMessage(data) {
+      const fromPhone = data.from;
+      
+      if (!state.messages[fromPhone]) {
+        state.messages[fromPhone] = [];
+      }
+      
+      state.messages[fromPhone].push({
+        id: data.id,
+        text: data.text,
+        sent: false,
+        timestamp: data.timestamp
+      });
+      
+      const friendIndex = state.friends.findIndex(function(f) { 
+        return f.phone === fromPhone; 
+      });
+      
+      if (friendIndex !== -1) {
+        state.friends[friendIndex].lastMessage = data.text;
+        state.friends[friendIndex].timestamp = data.timestamp;
+        
+        if (state.currentChat !== fromPhone) {
+          state.friends[friendIndex].unread++;
         }
+      }
+      
+      render();
+      
+      if (state.currentChat === fromPhone) {
+        scrollToBottom();
+      }
+    }
 
-        // Login/Register logic will be added here
-    </script>
+    function handleSentMessage(data) {
+      if (!state.messages[data.to]) {
+        state.messages[data.to] = [];
+      }
+      
+      state.messages[data.to].push({
+        id: data.id,
+        text: data.text,
+        sent: true,
+        timestamp: data.timestamp
+      });
+      
+      const friendIndex = state.friends.findIndex(function(f) { 
+        return f.phone === data.to; 
+      });
+      
+      if (friendIndex !== -1) {
+        state.friends[friendIndex].lastMessage = data.text;
+        state.friends[friendIndex].timestamp = data.timestamp;
+      }
+      
+      render();
+      scrollToBottom();
+    }
+
+    // API calls with authentication
+    async function apiCall(endpoint, method = 'GET', body = null) {
+      const options = {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      };
+
+      if (state.token) {
+        options.headers['Authorization'] = 'Bearer ' + state.token;
+      }
+
+      if (body) {
+        options.body = JSON.stringify(body);
+      }
+
+      const response = await fetch(API_URL + endpoint, options);
+      
+      if (response.status === 401) {
+        // Token expired, logout
+        handleLogout();
+        throw new Error('Session expired');
+      }
+
+      return response.json();
+    }
+
+    // Login
+    async function handleLogin() {
+      const phoneInput = document.getElementById('phone-input');
+      const phone = phoneInput.value.trim();
+      
+      if (phone.length < 10) {
+        showToast('Въведи валиден телефонен номер', 'error');
+        return;
+      }
+      
+      state.isLoading = true;
+      render();
+      
+      try {
+        const data = await apiCall('/api/auth/login', 'POST', { phone: phone });
+        
+        state.phone = data.phone;
+        state.isPaid = data.isPaid;
+        
+        if (data.isPaid && data.token) {
+          state.token = data.token;
+          saveState();
+          connectWebSocket(data.token);
+          await loadFriends();
+          state.screen = 'home';
+        } else {
+          state.screen = 'payment';
+        }
+      } catch (err) {
+        console.error('Login failed:', err);
+        showToast('Грешка при вход', 'error');
+      } finally {
+        state.isLoading = false;
+        render();
+      }
+    }
+
+    // Payment
+    async function handlePayment() {
+      if (!stripe || !cardElement) {
+        showToast('Stripe не е зареден', 'error');
+        return;
+      }
+
+      state.isLoading = true;
+      render();
+
+      try {
+        // Create payment intent
+        const intentData = await apiCall('/api/payment/create-intent', 'POST', { 
+          phone: state.phone 
+        });
+
+        // Confirm payment
+        const result = await stripe.confirmCardPayment(intentData.clientSecret, {
+          payment_method: {
+            card: cardElement
+          }
+        });
+
+        if (result.error) {
+          showToast(result.error.message, 'error');
+        } else if (result.paymentIntent.status === 'succeeded') {
+          // Confirm with backend
+          const confirmData = await apiCall('/api/payment/confirm', 'POST', {
+            phone: state.phone,
+            paymentIntentId: result.paymentIntent.id
+          });
+
+          if (confirmData.success) {
+            state.token = confirmData.token;
+            state.isPaid = true;
+            saveState();
+            
+            // Show success message
+            document.getElementById('payment-form').style.display = 'none';
+            document.getElementById('success-message').style.display = 'block';
+            
+            setTimeout(function() {
+              connectWebSocket(state.token);
+              loadFriends();
+              state.screen = 'home';
+              render();
+            }, 2000);
+          }
+        }
+      } catch (err) {
+        console.error('Payment failed:', err);
+        showToast('Плащането не бе успешно', 'error');
+      } finally {
+        state.isLoading = false;
+        render();
+      }
+    }
+
+    // Load friends
+    async function loadFriends() {
+      try {
+        const data = await apiCall('/api/friends');
+        state.friends = data.friends || [];
+        render();
+      } catch (err) {
+        console.error('Failed to load friends:', err);
+      }
+    }
+
+    // Add friend
+    async function handleAddFriend() {
+      const input = document.getElementById('friend-phone-input');
+      const friendPhone = input.value.trim();
+      
+      if (friendPhone.length < 10) {
+        showToast('Въведи валиден телефонен номер', 'error');
+        return;
+      }
+      
+      state.isLoading = true;
+      render();
+      
+      try {
+        await apiCall('/api/friends', 'POST', { friendPhone: friendPhone });
+        
+        showToast('Приятел добавен успешно!', 'success');
+        
+        await loadFriends();
+        state.screen = 'home';
+      } catch (err) {
+        console.error('Failed to add friend:', err);
+        showToast('Грешка при добавяне на приятел', 'error');
+      } finally {
+        state.isLoading = false;
+        render();
+      }
+    }
+
+    // Open chat
+    async function openChat(friendPhone) {
+      state.currentChat = friendPhone;
+      state.screen = 'chat';
+      
+      // Mark friend as read
+      const friendIndex = state.friends.findIndex(function(f) { 
+        return f.phone === friendPhone; 
+      });
+      if (friendIndex !== -1) {
+        state.friends[friendIndex].unread = 0;
+      }
+      
+      render();
+      
+      // Load messages
+      try {
+        const data = await apiCall('/api/messages/' + friendPhone);
+        state.messages[friendPhone] = data.messages || [];
+        render();
+        scrollToBottom();
+      } catch (err) {
+        console.error('Failed to load messages:', err);
+        showToast('Грешка при зареждане на съобщения', 'error');
+      }
+    }
+
+    // Send message
+    function handleSendMessage() {
+      const input = document.getElementById('message-input');
+      const text = input.value.trim();
+      
+      if (!text || !state.ws || state.ws.readyState !== WebSocket.OPEN) {
+        return;
+      }
+      
+      state.ws.send(JSON.stringify({
+        type: 'message',
+        to: state.currentChat,
+        text: text
+      }));
+      
+      input.value = '';
+    }
+
+    // Logout
+    async function handleLogout() {
+      try {
+        if (state.token) {
+          await apiCall('/api/auth/logout', 'POST');
+        }
+      } catch (err) {
+        console.error('Logout error:', err);
+      }
+      
+      if (state.ws) {
+        state.ws.close();
+      }
+      
+      localStorage.removeItem('kcy_phone');
+      localStorage.removeItem('kcy_token');
+      
+      state = {
+        screen: 'login',
+        phone: '',
+        token: null,
+        currentChat: null,
+        friends: [],
+        messages: {},
+        isPaid: false,
+        ws: null,
+        isLoading: false
+      };
+      
+      render();
+    }
+
+    // Utility functions
+    function formatTime(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffHours = (now - date) / (1000 * 60 * 60);
+      
+      if (diffHours < 24) {
+        return date.toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' });
+      }
+      return date.toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit' });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function scrollToBottom() {
+      setTimeout(function() {
+        const container = document.getElementById('messages-container');
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }, 100);
+    }
+
+    // Render functions
+    function renderLogin() {
+      return '<div class="h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">' +
+        '<div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">' +
+          '<div class="text-center mb-8">' +
+            '<img src="/icon-192.png" alt="AMS Chat" class="w-24 h-24 mx-auto mb-4">' +
+            '<h1 class="text-3xl font-bold text-gray-800 mb-2">AMS Chat</h1>' +
+            '<p class="text-gray-500">Secure Anonymous Messaging</p>' +
+          '</div>' +
+          '<div class="space-y-4">' +
+            '<div>' +
+              '<label class="block text-sm font-medium text-gray-700 mb-2">Телефонен номер</label>' +
+              '<input id="phone-input" type="tel" placeholder="+359 888 999 000" ' +
+                'class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition" ' +
+                'onkeypress="if(event.key===\'Enter\') handleLogin()" ' +
+                (state.isLoading ? 'disabled' : '') + ' />' +
+            '</div>' +
+            '<button onclick="handleLogin()" ' +
+              'class="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold hover:bg-blue-600 active:scale-95 transition flex items-center justify-center" ' +
+              (state.isLoading ? 'disabled' : '') + '>' +
+              (state.isLoading ? '<div class="spinner"></div>' : 'Вход') +
+            '</button>' +
+          '</div>' +
+          '<div class="mt-6 p-4 bg-blue-50 rounded-xl">' +
+            '<p class="text-xs text-gray-600 text-center">' +
+              '✓ End-to-end encryption<br/>' +
+              '✓ No personal data stored<br/>' +
+              '✓ Only $1/month<br/>' +
+              '✓ Cancel anytime' +
+            '</p>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function renderPayment() {
+      return '<div class="h-screen bg-gray-50 overflow-y-auto p-4">' +
+        '<div class="max-w-md mx-auto py-8">' +
+          '<div id="payment-form">' +
+            '<div class="bg-white rounded-3xl shadow-xl p-8 mb-6">' +
+              '<div class="text-center mb-6">' +
+                '<div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">' +
+                  '<svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />' +
+                  '</svg>' +
+                '</div>' +
+                '<h2 class="text-3xl font-bold text-gray-800 mb-2">Месечен абонамент</h2>' +
+                '<p class="text-5xl font-bold text-blue-600 my-4">$1</p>' +
+                '<p class="text-gray-500">или €1 за Европа</p>' +
+              '</div>' +
+              '<div class="space-y-4">' +
+                '<div>' +
+                  '<label class="block text-sm font-medium text-gray-700 mb-2">Данни за карта</label>' +
+                  '<div id="card-element" class="mb-4"></div>' +
+                  '<div id="card-errors" class="text-red-500 text-sm"></div>' +
+                '</div>' +
+                '<button onclick="handlePayment()" ' +
+                  'class="w-full bg-green-500 text-white py-3 rounded-xl font-semibold hover:bg-green-600 active:scale-95 transition flex items-center justify-center" ' +
+                  (state.isLoading ? 'disabled' : '') + '>' +
+                  (state.isLoading ? '<div class="spinner"></div>' : 'Плати $1/месец') +
+                '</button>' +
+                '<p class="text-xs text-gray-500 text-center">Защитено от Stripe • Тествай с картата 4242 4242 4242 4242</p>' +
+              '</div>' +
+              '<div class="mt-6 p-4 bg-blue-50 rounded-xl">' +
+                '<p class="text-xs text-gray-600">' +
+                  '✓ Анонимен чат<br/>' +
+                  '✓ Без реклами<br/>' +
+                  '✓ End-to-end encryption<br/>' +
+                  '✓ Без проследяване<br/>' +
+                  '✓ Отмени по всяко време' +
+                '</p>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div id="success-message" style="display:none;" class="bg-white rounded-3xl shadow-xl p-8 text-center">' +
+            '<div class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">' +
+              '<svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />' +
+              '</svg>' +
+            '</div>' +
+            '<h2 class="text-2xl font-bold text-gray-800 mb-2">Успешно плащане!</h2>' +
+            '<p class="text-gray-500">Добре дошъл в AMS Chat</p>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function renderHome() {
+      const sortedFriends = state.friends.slice().sort(function(a, b) {
+        return b.timestamp - a.timestamp;
+      });
+      
+      let friendsHtml = '';
+      if (sortedFriends.length === 0) {
+        friendsHtml = '<div class="text-center py-12 px-4">' +
+          '<div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">' +
+            '<svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+              '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />' +
+            '</svg>' +
+          '</div>' +
+          '<p class="text-gray-500 mb-4">Няма приятели все още</p>' +
+          '<button onclick="state.screen=\'addFriend\'; render();" ' +
+            'class="bg-blue-500 text-white px-6 py-2 rounded-full hover:bg-blue-600 transition">' +
+            'Добави приятел' +
+          '</button>' +
+        '</div>';
+      } else {
+        friendsHtml = sortedFriends.map(function(friend) {
+          return '<div onclick="openChat(\'' + friend.phone + '\')" ' +
+            'class="bg-white border-b border-gray-200 p-4 hover:bg-gray-50 active:bg-gray-100 cursor-pointer transition">' +
+            '<div class="flex items-center justify-between">' +
+              '<div class="flex-1 min-w-0">' +
+                '<div class="flex items-center justify-between mb-1">' +
+                  '<span class="font-semibold text-gray-800 truncate">' + escapeHtml(friend.phone) + '</span>' +
+                  '<span class="text-xs text-gray-500 ml-2 flex-shrink-0">' + formatTime(friend.timestamp) + '</span>' +
+                '</div>' +
+                '<p class="text-sm text-gray-600 truncate">' + escapeHtml(friend.lastMessage || 'Нов чат') + '</p>' +
+              '</div>' +
+              (friend.unread > 0 ? 
+                '<div class="ml-4 bg-blue-500 text-white text-xs rounded-full min-w-6 h-6 flex items-center justify-center px-2 flex-shrink-0">' +
+                  friend.unread +
+                '</div>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+      
+      return '<div class="h-screen bg-gray-50 flex flex-col">' +
+        '<div class="bg-blue-500 text-white p-4 shadow-lg">' +
+          '<div class="flex items-center justify-between">' +
+            '<h1 class="text-2xl font-bold">AMS Chat</h1>' +
+            '<div class="flex items-center space-x-2">' +
+              '<button onclick="state.screen=\'addFriend\'; render();" ' +
+                'class="bg-blue-600 p-2 rounded-full hover:bg-blue-700 active:scale-95 transition">' +
+                '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                  '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />' +
+                '</svg>' +
+              '</button>' +
+              '<button onclick="if(confirm(\'Сигурен ли си?\')) handleLogout();" ' +
+                'class="bg-blue-600 p-2 rounded-full hover:bg-blue-700 active:scale-95 transition">' +
+                '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                  '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />' +
+                '</svg>' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex-1 overflow-y-auto">' + friendsHtml + '</div>' +
+        '<div class="bg-white border-t border-gray-200 p-3 text-center text-xs text-gray-500">' +
+          '🔒 Абонамент активен • ' + escapeHtml(state.phone) +
+        '</div>' +
+      '</div>';
+    }
+
+    function renderAddFriend() {
+      return '<div class="h-screen bg-gray-50 flex flex-col">' +
+        '<div class="bg-blue-500 text-white p-4 shadow-lg">' +
+          '<div class="flex items-center">' +
+            '<button onclick="state.screen=\'home\'; render();" class="mr-4 p-2 hover:bg-blue-600 rounded-full transition">' +
+              '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />' +
+              '</svg>' +
+            '</button>' +
+            '<h1 class="text-xl font-bold">Добави приятел</h1>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex-1 overflow-y-auto p-4">' +
+          '<div class="bg-white rounded-xl p-6 shadow-md">' +
+            '<label class="block text-sm font-medium text-gray-700 mb-2">Телефонен номер на приятел</label>' +
+            '<input id="friend-phone-input" type="tel" placeholder="+359 888 999 000" ' +
+              'class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition mb-4" ' +
+              'onkeypress="if(event.key===\'Enter\') handleAddFriend()" ' +
+              (state.isLoading ? 'disabled' : '') + ' />' +
+            '<button onclick="handleAddFriend()" ' +
+              'class="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold hover:bg-blue-600 active:scale-95 transition flex items-center justify-center" ' +
+              (state.isLoading ? 'disabled' : '') + '>' +
+              (state.isLoading ? '<div class="spinner"></div>' : 'Добави') +
+            '</button>' +
+          '</div>' +
+          '<div class="mt-6 p-4 bg-blue-50 rounded-xl">' +
+            '<p class="text-sm text-gray-600">' +
+              '<strong>Забележка:</strong> Можеш да добавиш само потребители с активен абонамент.' +
+            '</p>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function renderChat() {
+      const chatMessages = state.messages[state.currentChat] || [];
+      
+      const messagesHtml = chatMessages.map(function(msg) {
+        return '<div class="flex ' + (msg.sent ? 'justify-end' : 'justify-start') + ' message-enter">' +
+          '<div class="max-w-xs md:max-w-md px-4 py-2 rounded-2xl ' + 
+            (msg.sent ? 'bg-blue-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none shadow-md') + '">' +
+            '<p class="break-words">' + escapeHtml(msg.text) + '</p>' +
+            '<p class="text-xs mt-1 ' + (msg.sent ? 'text-blue-100' : 'text-gray-500') + '">' +
+              formatTime(msg.timestamp) +
+            '</p>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      
+      return '<div class="h-screen bg-gray-100 flex flex-col">' +
+        '<div class="bg-blue-500 text-white p-4 shadow-lg">' +
+          '<div class="flex items-center">' +
+            '<button onclick="state.screen=\'home\'; state.currentChat=null; render();" ' +
+              'class="mr-4 p-2 hover:bg-blue-600 rounded-full transition">' +
+              '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />' +
+              '</svg>' +
+            '</button>' +
+            '<div class="flex-1 min-w-0">' +
+              '<h2 class="font-semibold truncate">' + escapeHtml(state.currentChat) + '</h2>' +
+              '<p class="text-xs text-blue-100">AMS Chat • End-to-end encrypted</p>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-3 chat-scroll">' +
+          (messagesHtml || '<div class="text-center text-gray-500 mt-12">Започни разговор!</div>') +
+        '</div>' +
+        '<div class="bg-white border-t border-gray-200 p-4">' +
+          '<div class="flex items-center space-x-2">' +
+            '<input id="message-input" type="text" placeholder="Съобщение..." maxlength="5000" ' +
+              'class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-full focus:border-blue-500 focus:outline-none transition" ' +
+              'onkeypress="if(event.key===\'Enter\') handleSendMessage()" />' +
+            '<button onclick="handleSendMessage()" ' +
+              'class="bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 active:scale-95 transition flex-shrink-0">' +
+              '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />' +
+              '</svg>' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    // Main render function
+    function render() {
+      const app = document.getElementById('app');
+      
+      if (state.screen === 'login') {
+        app.innerHTML = renderLogin();
+      } else if (state.screen === 'payment') {
+        app.innerHTML = renderPayment();
+        
+        // Initialize Stripe Elements
+        setTimeout(function() {
+          if (stripe && !stripeElements) {
+            stripeElements = stripe.elements();
+            cardElement = stripeElements.create('card', {
+              style: {
+                base: {
+                  fontSize: '16px',
+                  color: '#1f2937',
+                  '::placeholder': {
+                    color: '#9ca3af'
+                  }
+                }
+              }
+            });
+            cardElement.mount('#card-element');
+            
+            cardElement.on('change', function(event) {
+              const displayError = document.getElementById('card-errors');
+              if (event.error) {
+                displayError.textContent = event.error.message;
+              } else {
+                displayError.textContent = '';
+              }
+            });
+          }
+        }, 100);
+      } else if (state.screen === 'home') {
+        app.innerHTML = renderHome();
+      } else if (state.screen === 'addFriend') {
+        app.innerHTML = renderAddFriend();
+      } else if (state.screen === 'chat') {
+        app.innerHTML = renderChat();
+      }
+    }
+
+    // Initialize app
+    async function init() {
+      await initStripe();
+      
+      // Try to restore session
+      if (loadState() && state.token) {
+        try {
+          connectWebSocket(state.token);
+          await loadFriends();
+          state.screen = 'home';
+          state.isPaid = true;
+        } catch (err) {
+          console.error('Failed to restore session:', err);
+          handleLogout();
+        }
+      }
+      
+      render();
+    }
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js')
+          .then(function(registration) {
+            console.log('Service Worker registered:', registration);
+          })
+          .catch(function(error) {
+            console.log('Service Worker registration failed:', error);
+          });
+      });
+    }
+
+    // Start app
+    init();
+  </script>
 </body>
 </html>
