@@ -4,12 +4,12 @@ const { validatePhone, validateCustomName } = require('../utils/validation');
 function createFriendsRoutes(db) {
   const router = express.Router();
 
-  // Search users to add as friends - FULL SEARCH
+  // Search users to add as friends - САМО по: country, phone, gender, height, weight
   router.get('/search', (req, res) => {
     try {
-      const { phone, country, gender, heightMin, heightMax, weightMin, weightMax } = req.query;
+      const { phone, country, gender, height, weight } = req.query;
 
-      if (!phone && !country && !gender && !heightMin && !heightMax && !weightMin && !weightMax) {
+      if (!phone && !country && !gender && !height && !weight) {
         return res.status(400).json({ error: 'At least one search parameter required' });
       }
 
@@ -37,24 +37,14 @@ function createFriendsRoutes(db) {
         params.push(gender);
       }
 
-      if (heightMin) {
-        query += ` AND height_cm >= ?`;
-        params.push(parseInt(heightMin));
+      if (height) {
+        query += ` AND height_cm = ?`;
+        params.push(parseInt(height));
       }
 
-      if (heightMax) {
-        query += ` AND height_cm <= ?`;
-        params.push(parseInt(heightMax));
-      }
-
-      if (weightMin) {
-        query += ` AND weight_kg >= ?`;
-        params.push(parseInt(weightMin));
-      }
-
-      if (weightMax) {
-        query += ` AND weight_kg <= ?`;
-        params.push(parseInt(weightMax));
+      if (weight) {
+        query += ` AND weight_kg = ?`;
+        params.push(parseInt(weight));
       }
 
       query += ` AND id != ? LIMIT 50`;
