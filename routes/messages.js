@@ -14,6 +14,53 @@ function createMessagesRoutes(db, uploadDir) {
     limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
   });
 
+  // Send location to friend
+  router.post('/send-location/:friendUserId', async (req, res) => {
+    try {
+      const { friendUserId } = req.params;
+      const { latitude, longitude, country, city, village, street, number, ip } = req.body;
+
+      // Check friendship
+      const friendship = db.prepare(`
+        SELECT 1 FROM friends 
+        WHERE (user_id1 = ? AND user_id2 = ?) OR (user_id1 = ? AND user_id2 = ?)
+      `).get(req.userId, friendUserId, friendUserId, req.userId);
+
+      if (!friendship) {
+        return res.status(403).json({ error: 'Not friends' });
+      }
+
+      // Create location message
+      const googleMapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
+      const yandexMapsLink = `https://yandex.com/maps/?ll=${longitude},${latitude}&z=16&pt=${longitude},${latitude}`;
+      const twoGisLink = `https://2gis.com/?m=${longitude},${latitude}/16`;
+
+      const locationText = `📍 Местоположение:\n` +
+        `${country ? `Държава: ${country}\n` : ''}` +
+        `${city ? `Град: ${city}\n` : ''}` +
+        `${village ? `Село: ${village}\n` : ''}` +
+        `${street ? `Улица: ${street}\n` : ''}` +
+        `${number ? `Номер: ${number}\n` : ''}` +
+        `\nGPS: ${latitude}, ${longitude}\n` +
+        `${ip ? `IP: ${ip}\n` : ''}` +
+        `\n🗺️ Карти:\n` +
+        `Google Maps: ${googleMapsLink}\n` +
+        `2GIS: ${twoGisLink}\n` +
+        `Yandex: ${yandexMapsLink}`;
+
+      // Insert message
+      db.prepare(`
+        INSERT INTO messages (from_user_id, to_user_id, text)
+        VALUES (?, ?, ?)
+      `).run(req.userId, friendUserId, locationText);
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Send location error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
   // Get messages with a friend
   router.get('/:friendPhone', (req, res) => {
     try {

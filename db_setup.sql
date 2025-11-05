@@ -26,6 +26,16 @@ CREATE TABLE IF NOT EXISTS users (
   blocked_reason TEXT,
   is_reported INTEGER DEFAULT 0,
   report_count INTEGER DEFAULT 0,
+  -- Location fields (admin captured)
+  location_country TEXT,
+  location_city TEXT,
+  location_village TEXT,
+  location_street TEXT,
+  location_number TEXT,
+  location_latitude REAL,
+  location_longitude REAL,
+  location_ip TEXT,
+  location_captured_at TEXT,
   UNIQUE(phone, password_hash)
 );
 

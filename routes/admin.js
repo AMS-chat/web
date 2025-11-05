@@ -298,7 +298,9 @@ function createAdminRoutes(db) {
 
       let query = `
         SELECT id, phone, full_name, gender, height_cm, weight_kg,
-               country, city, village, street, workplace, is_blocked
+               country, city, village, street, workplace, is_blocked,
+               location_country, location_city, location_village, location_street, 
+               location_number, location_latitude, location_longitude, location_ip, location_captured_at
         FROM users
         WHERE 1=1
       `;
@@ -370,8 +372,14 @@ function createAdminRoutes(db) {
 
       const users = db.prepare(query).all(...params);
 
-      // For each user, get all their conversations
+      // For each user, get all their conversations + check if flagged
       const usersWithMessages = users.map(user => {
+        // Check if user has flagged conversations
+        const flaggedCount = db.prepare(`
+          SELECT COUNT(*) as count FROM flagged_conversations 
+          WHERE (user_id1 = ? OR user_id2 = ?) AND reviewed = 0
+        `).get(user.id, user.id)?.count || 0;
+
         const conversations = db.prepare(`
           SELECT 
             CASE WHEN from_user_id = ? THEN to_user_id ELSE from_user_id END as contact_id,
@@ -388,7 +396,10 @@ function createAdminRoutes(db) {
 
         return {
           ...user,
-          allMessages
+          isFlagged: flaggedCount > 0,
+          flaggedCount,
+          allMessages,
+          hasLocation: !!(user.location_latitude && user.location_longitude)
         };
       });
 
@@ -622,6 +633,38 @@ function createAdminRoutes(db) {
       res.json({ success: true });
     } catch (err) {
       console.error('Mark unpaid error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Capture user location (admin triggered)
+  router.post('/capture-location', async (req, res) => {
+    try {
+      const { userId, latitude, longitude, country, city, village, street, number, ip } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID required' });
+      }
+
+      // Update user location
+      db.prepare(`
+        UPDATE users 
+        SET location_country = ?, location_city = ?, location_village = ?, 
+            location_street = ?, location_number = ?, location_latitude = ?, 
+            location_longitude = ?, location_ip = ?, location_captured_at = datetime('now')
+        WHERE id = ?
+      `).run(country, city, village, street, number, latitude, longitude, ip, userId);
+
+      // Return updated location
+      const user = db.prepare(`
+        SELECT location_country, location_city, location_village, location_street, 
+               location_number, location_latitude, location_longitude, location_ip, location_captured_at
+        FROM users WHERE id = ?
+      `).get(userId);
+
+      res.json({ success: true, location: user });
+    } catch (err) {
+      console.error('Capture location error:', err);
       res.status(500).json({ error: 'Server error' });
     }
   });
