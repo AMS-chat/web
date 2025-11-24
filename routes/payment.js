@@ -162,3 +162,157 @@ function createPaymentRoutes(db) {
 }
 
 module.exports = createPaymentRoutes;
+// Add this to the existing routes/payment.js file
+// Insert this BEFORE the final "return router;" line
+
+// ============================================
+// CRYPTO PAYMENT ROUTES (KCY1 Token)
+// ============================================
+
+// Crypto payment confirmation
+router.post('/crypto-confirm', async (req, res) => {
+  try {
+    const { userId, phone, txHash, walletAddress, amount, tokenAddress } = req.body;
+
+    if (!userId || !phone || !txHash || !walletAddress) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Get user
+    const user = db.prepare('SELECT * FROM users WHERE id = ? AND phone = ?').get(userId, phone);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if payment already processed (prevent double-spending)
+    const existingPayment = db.prepare(
+      'SELECT * FROM payment_logs WHERE stripe_payment_id = ?'
+    ).get(txHash);
+
+    if (existingPayment) {
+      return res.status(400).json({ error: 'Payment already processed' });
+    }
+
+    // Calculate new paid_until date
+    let paidUntil = new Date();
+    
+    if (user && new Date(user.paid_until) > new Date()) {
+      // Extend existing subscription
+      paidUntil = new Date(user.paid_until);
+    }
+    
+    paidUntil.setMonth(paidUntil.getMonth() + 1); // +1 month
+
+    // Update user
+    db.prepare(`
+      UPDATE users 
+      SET paid_until = ?, 
+          last_login = datetime("now"),
+          is_blocked = 0,
+          blocked_reason = NULL,
+          failed_login_attempts = 0,
+          payment_amount = ?,
+          payment_currency = ?
+      WHERE id = ?
+    `).run(paidUntil.toISOString(), amount, 'KCY', userId);
+
+    // Log payment
+    const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    
+    db.prepare(`
+      INSERT INTO payment_logs (user_id, phone, amount, currency, stripe_payment_id, status, country_code, ip_address, payment_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      userId,
+      phone, 
+      amount, 
+      'KCY', 
+      txHash, // Store tx hash in stripe_payment_id field
+      'succeeded', 
+      'CRYPTO', 
+      clientIP,
+      'crypto_payment'
+    );
+
+    // Create session token
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+    
+    const { v4: uuidv4 } = require('uuid');
+    db.prepare(`
+      INSERT INTO sessions (id, user_id, token, expires_at, device_type)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(uuidv4(), userId, token, expiresAt.toISOString(), 'web');
+
+    // Log crypto payment details
+    console.log('✅ Crypto payment confirmed:', {
+      userId,
+      phone,
+      txHash,
+      walletAddress,
+      amount,
+      tokenAddress,
+      paidUntil: paidUntil.toISOString()
+    });
+
+    res.json({
+      success: true,
+      token,
+      paidUntil: paidUntil.toISOString(),
+      unblocked: user.is_blocked ? true : false
+    });
+  } catch (err) {
+    console.error('Crypto payment confirm error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get crypto payment status (for checking pending payments)
+router.get('/crypto-status/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = db.prepare('SELECT paid_until FROM users WHERE id = ?').get(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const isPaid = new Date(user.paid_until) > new Date();
+    
+    res.json({
+      isPaid,
+      paidUntil: user.paid_until
+    });
+  } catch (err) {
+    console.error('Crypto status error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Manual crypto payment verification (admin can trigger)
+router.post('/verify-crypto-payment', async (req, res) => {
+  try {
+    const { txHash, expectedAmount } = req.body;
+
+    // TODO: Implement blockchain verification
+    // This would use ethers.js or web3.js to:
+    // 1. Get transaction details from BSC
+    // 2. Verify it's to the correct treasury wallet
+    // 3. Verify the amount is correct
+    // 4. Verify it's a KCY1 token transfer
+    
+    // For now, return basic info
+    res.json({
+      verified: false,
+      message: 'Blockchain verification not yet implemented',
+      txHash
+    });
+  } catch (err) {
+    console.error('Verify crypto error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
