@@ -1,3 +1,4 @@
+// Version: 001.00001
 const bcrypt = require('bcrypt');
 
 const SALT_ROUNDS = 10;

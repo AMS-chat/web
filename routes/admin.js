@@ -1,3 +1,4 @@
+// Version: 001.00001
 const express = require('express');
 const { hashPassword, verifyPassword } = require('../utils/password');
 

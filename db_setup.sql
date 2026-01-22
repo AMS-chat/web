@@ -1,3 +1,4 @@
+-- Version: 001.00001
 -- AMS Chat Database Schema v4.2
 -- Shared between Web & Mobile App
 

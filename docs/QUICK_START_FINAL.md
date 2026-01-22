@@ -1,3 +1,4 @@
+<!-- Version: 001.00001 -->
 # 🎯 QUICK START - CRYPTO PAYMENT INTEGRATION
 
 ## ⚡ ТИ ИСКАШЕ:

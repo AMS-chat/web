@@ -1,3 +1,4 @@
+<!-- Version: 001.00001 -->
 # Location Feature Setup Guide
 
 ## 🎯 Функционалност

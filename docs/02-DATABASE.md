@@ -1,3 +1,4 @@
+<!-- Version: 001.00001 -->
 # 02 - База данни
 
 ## 🗄️ SQLite Database Schema

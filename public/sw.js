@@ -1,3 +1,4 @@
+// Version: 001.00001
 const CACHE_NAME = 'ams-chat-v2.0';
 const DYNAMIC_CACHE = 'ams-chat-dynamic-v2.0';
 

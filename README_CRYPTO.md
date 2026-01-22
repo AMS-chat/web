@@ -1,3 +1,4 @@
+<!-- Version: 001.00001 -->
 # 🌐 AMS Chat - Web Application (With Crypto Payment)
 
 ## ✅ ГОТОВ ЗА ИЗПОЛЗВАНЕ!

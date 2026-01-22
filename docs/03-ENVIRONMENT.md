@@ -1,3 +1,4 @@
+<!-- Version: 001.00001 -->
 # 03 - Environment Variables
 
 ## ⚙️ .env файл конфигурация
