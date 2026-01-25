@@ -1,87 +1,171 @@
-// Version: 001.00002
+// Version: 001.00003
 // Service Categories Constants
 // Used for "current_need" and "offerings" fields
 
 const SERVICE_CATEGORIES = {
-  EMERGENCY: {
-    label: 'Спешни',
-    subcategories: [
-      'Доктор',
-      'Болница',
-      'Бърза помощ',
-      'Полиция',
-      'Загубих се/ориентир'
-    ]
-  },
+  // Categories in alphabetical order (English)
   
   CRAFTSMAN: {
-    label: 'Майстор',
+    label: 'Craftsman',
     subcategories: [
-      'Строител',
-      'Електротехник',
-      'Вик майстор',
-      'Шпакловчик',
-      'Автомонтьор',
-      'Помпане на гуми'
+      'Auto Mechanic',
+      'Carpenter',
+      'Electrician',
+      'HVAC Technician',
+      'Locksmith',
+      'Painter',
+      'Plasterer',
+      'Plumber',
+      'Tire Inflation',
+      'Welder'
     ]
   },
   
-  TRANSLATOR: {
-    label: 'Преводач',
+  EMERGENCY_NEED: {
+    label: 'Emergency Need',
     subcategories: [
-      'Английски',
-      'Турски',
-      'Китайски',
-      'Френски',
-      'Португалски',
-      'Суахили',
-      'Немски',
-      'Италиански',
-      'Испански',
-      'Руски'
+      'Help',
+      'Sick'
+    ]
+  },
+  
+  EMERGENCY_OFFERING: {
+    label: 'Emergency Offering',
+    subcategories: [
+      'Ambulance',
+      'Doctor',
+      'Hospital',
+      'Police'
     ]
   },
   
   FOOD_DRINK: {
-    label: 'Храна/Пиене',
+    label: 'Food/Drink Jobs',
     subcategories: [
-      'Ресторант висока класа',
-      'Ресторант бързо хранене',
-      'Сладкарница/кафене',
-      'Пиене',
-      'Ядене'
+      'Bartender',
+      'Chef',
+      'Food Delivery',
+      'Waiter'
     ]
   },
   
-  SOCIAL: {
-    label: 'Социално',
+  MOOD: {
+    label: 'Mood',
     subcategories: [
-      'Любов',
-      'Сериозно запознанство',
-      'Еднократно забавление',
-      'Приятели',
-      'Просто чат',
-      'Научни дискусии',
-      'Политика'
+      'Drinks',
+      'Food',
+      'Friends',
+      'Just Chat',
+      'Love',
+      'One-time Fun',
+      'Political Discussions',
+      'Scientific Discussions',
+      'Serious Dating'
+    ]
+  },
+  
+  SERVICES: {
+    label: 'Services',
+    subcategories: [
+      'Babysitter',
+      'Driver',
+      'Fitness Trainer',
+      'Housekeeper',
+      'Teacher'
+    ]
+  },
+  
+  SPORTS: {
+    label: 'Sports',
+    subcategories: [
+      'Boxing',
+      'Cycling',
+      'Muay Thai',
+      'Nature/Park',
+      'Running',
+      'Swimming',
+      'Tourist Excursion',
+      'Wrestling'
+    ]
+  },
+  
+  TRANSLATOR: {
+    label: 'Translator',
+    subcategories: [
+      'Arabic',
+      'Chinese',
+      'English',
+      'French',
+      'German',
+      'Hebrew',
+      'Italian',
+      'Kazakh',
+      'Kyrgyz',
+      'Mexican',
+      'Mongolian',
+      'Nigerian',
+      'Portuguese',
+      'Russian',
+      'Spanish',
+      'Swahili',
+      'Turkish',
+      'Ukrainian'
+    ]
+  },
+  
+  VENUES: {
+    label: 'Venues',
+    subcategories: [
+      'Bar',
+      'Coffee/Sweets',
+      'Disco',
+      'Fast Food',
+      'Hi Class Food',
+      'Karaoke'
     ]
   }
 };
 
-// Services that require admin verification
+// Services that require admin verification (only for offerings)
 const VERIFIED_ONLY_SERVICES = [
-  'Доктор',
-  'Болница',
-  'Бърза помощ',
-  'Полиция'
+  'Doctor',
+  'Hospital',
+  'Ambulance',
+  'Police'
 ];
+
+// Services that can ONLY be used as OFFERINGS (not as needs)
+const OFFERING_ONLY_SERVICES = [
+  'Doctor',
+  'Hospital',
+  'Ambulance',
+  'Police'
+];
+
+// Services that can ONLY be used as NEEDS (not as offerings)
+const NEED_ONLY_SERVICES = [
+  'Sick',
+  'Help'
+];
+
+// Emergency need to offering mapping
+const EMERGENCY_NEED_MAPPING = {
+  'Sick': ['Doctor', 'Hospital', 'Ambulance'],
+  'Help': ['Police']
+};
 
 // All available services (flat list)
 const ALL_SERVICES = Object.values(SERVICE_CATEGORIES)
   .flatMap(category => category.subcategories);
 
-// Services available for regular users in "offerings"
+// Services available for regular users in "offerings" (excludes need-only services)
 const PUBLIC_OFFERING_SERVICES = ALL_SERVICES.filter(
-  service => !VERIFIED_ONLY_SERVICES.includes(service)
+  service => !NEED_ONLY_SERVICES.includes(service) && !VERIFIED_ONLY_SERVICES.includes(service)
+);
+
+// Services available for "current_need" (excludes offering-only services)
+const NEED_SERVICES = ALL_SERVICES.filter(
+  service => !OFFERING_ONLY_SERVICES.includes(service)
 );
 
 // Check if a service requires verification
@@ -91,14 +175,38 @@ function requiresVerification(service) {
 
 // Check if user can offer a service
 function canOffer(service, isVerified) {
+  // Check if it's a need-only service
+  if (NEED_ONLY_SERVICES.includes(service)) {
+    return false; // Cannot offer "Sick" or "Help"
+  }
+  
+  // Check if it requires verification
   if (requiresVerification(service)) {
     return isVerified; // Only verified users can offer emergency services
   }
+  
   return true; // Anyone can offer public services
 }
 
+// Check if user can set as need
+function canSetAsNeed(service) {
+  // Cannot set offering-only services as need
+  return !OFFERING_ONLY_SERVICES.includes(service);
+}
+
+// Get matching offerings for a need
+function getMatchingOfferings(need) {
+  // Special mapping for emergency needs
+  if (EMERGENCY_NEED_MAPPING[need]) {
+    return EMERGENCY_NEED_MAPPING[need];
+  }
+  
+  // For all other services, direct match
+  return [need];
+}
+
 // Validate offerings (max 3)
-function validateOfferings(offerings) {
+function validateOfferings(offerings, isVerified = false) {
   if (!offerings) return { valid: true };
   
   const list = offerings.split(',').map(s => s.trim()).filter(Boolean);
@@ -111,6 +219,29 @@ function validateOfferings(offerings) {
     if (!ALL_SERVICES.includes(service)) {
       return { valid: false, error: `Invalid service: ${service}` };
     }
+    
+    if (NEED_ONLY_SERVICES.includes(service)) {
+      return { valid: false, error: `"${service}" can only be set as need, not offering` };
+    }
+    
+    if (requiresVerification(service) && !isVerified) {
+      return { valid: false, error: `"${service}" requires admin verification` };
+    }
+  }
+  
+  return { valid: true };
+}
+
+// Validate need
+function validateNeed(need) {
+  if (!need) return { valid: true };
+  
+  if (!ALL_SERVICES.includes(need)) {
+    return { valid: false, error: `Invalid service: ${need}` };
+  }
+  
+  if (OFFERING_ONLY_SERVICES.includes(need)) {
+    return { valid: false, error: `"${need}" can only be offered, not needed` };
   }
   
   return { valid: true };
@@ -119,9 +250,16 @@ function validateOfferings(offerings) {
 module.exports = {
   SERVICE_CATEGORIES,
   VERIFIED_ONLY_SERVICES,
+  OFFERING_ONLY_SERVICES,
+  NEED_ONLY_SERVICES,
+  EMERGENCY_NEED_MAPPING,
   ALL_SERVICES,
   PUBLIC_OFFERING_SERVICES,
+  NEED_SERVICES,
   requiresVerification,
   canOffer,
-  validateOfferings
+  canSetAsNeed,
+  getMatchingOfferings,
+  validateOfferings,
+  validateNeed
 };

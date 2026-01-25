@@ -168,7 +168,26 @@ function createSearchRoutes(db) {
         return res.status(400).json({ error: 'Need parameter required (what are you looking for?)' });
       }
       
+      // Validate need
+      const { validateNeed, getMatchingOfferings } = require('../utils/serviceCategories');
+      const needValidation = validateNeed(need);
+      if (!needValidation.valid) {
+        return res.status(400).json({ error: needValidation.error });
+      }
+      
       const MAX_RADIUS_KM = 50;
+      
+      // Get matching offerings for this need (handles emergency mapping)
+      const matchingOfferings = getMatchingOfferings(need);
+      
+      // Build offerings conditions dynamically
+      const offeringsConditions = [];
+      const offeringsParams = [];
+      
+      matchingOfferings.forEach(service => {
+        offeringsConditions.push('offerings LIKE ? OR offerings LIKE ? OR offerings LIKE ?');
+        offeringsParams.push(service, service + ',%', '%,' + service + '%');
+      });
       
       // Build query - find users who OFFER what I NEED
       let query = `
@@ -184,16 +203,10 @@ function createSearchRoutes(db) {
           AND paid_until > datetime('now')
           AND location_latitude IS NOT NULL
           AND location_longitude IS NOT NULL
-          AND (offerings LIKE ? OR offerings LIKE ? OR offerings LIKE ?)
+          AND (${offeringsConditions.join(' OR ')})
       `;
       
-      // Search for the need in offerings (comma-separated)
-      const params = [
-        userId,
-        need, // Exact match
-        need + ',%', // At start
-        '%,' + need + '%' // In middle or end
-      ];
+      const params = [userId, ...offeringsParams];
       
       // Add filters
       if (gender) {

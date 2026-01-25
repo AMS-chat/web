@@ -182,6 +182,15 @@ function createProfileRoutes(db) {
       const userId = req.user.id;
       const { current_need } = req.body;
       
+      // Validate need
+      if (current_need) {
+        const { validateNeed } = require('../utils/serviceCategories');
+        const validation = validateNeed(current_need);
+        if (!validation.valid) {
+          return res.status(400).json({ error: validation.error });
+        }
+      }
+      
       db.prepare('UPDATE users SET current_need = ? WHERE id = ?').run(current_need || null, userId);
       
       res.json({ success: true });
@@ -210,23 +219,10 @@ function createProfileRoutes(db) {
         });
       }
       
-      // Validate offerings
-      const validation = validateOfferings(offerings);
+      // Validate offerings (pass isVerified status)
+      const validation = validateOfferings(offerings, user.is_verified === 1);
       if (!validation.valid) {
         return res.status(400).json({ error: validation.error });
-      }
-      
-      // Check that all offerings are from PUBLIC list (no verified-only services)
-      if (offerings) {
-        const list = offerings.split(',').map(s => s.trim());
-        for (const service of list) {
-          if (!PUBLIC_OFFERING_SERVICES.includes(service)) {
-            return res.status(403).json({ 
-              error: `Service "${service}" requires admin verification`,
-              message: 'Contact admin@amschat.com to become a verified service provider'
-            });
-          }
-        }
       }
       
       db.prepare('UPDATE users SET offerings = ? WHERE id = ?').run(offerings || null, userId);
