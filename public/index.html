@@ -48,6 +48,73 @@
                     <p class="text-gray-400">€5 / $5 на месец</p>
                 </div>
 
+                <!-- How It Works Link -->
+                <div class="mb-6 text-center">
+                    <button onclick="toggleHowItWorks()" class="text-blue-400 hover:text-blue-300 underline text-sm">
+                        ℹ️ Как работи чата?
+                    </button>
+                </div>
+
+                <!-- How It Works Modal -->
+                <div id="howItWorksModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                    <div class="bg-gray-800 rounded-lg p-6 max-w-2xl max-h-screen overflow-y-auto">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-2xl font-bold">🎭 Как работи анонимният чат?</h2>
+                            <button onclick="toggleHowItWorks()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                        </div>
+
+                        <div class="space-y-4 text-sm">
+                            <div class="bg-gray-700 rounded p-4">
+                                <h3 class="font-bold text-green-400 mb-2">🔒 СИГУРНОСТ</h3>
+                                <ul class="space-y-1 text-gray-300">
+                                    <li>• Лица под 18г <strong>НЕ излизат</strong> в търсачките</li>
+                                    <li>• Чатиш само с потребители, на които знаеш <strong>ПЪЛНИТЕ данни + кодова парола</strong></li>
+                                    <li>• Телефон и имена може да са <strong>СКРИТИ</strong> (+359123...)</li>
+                                </ul>
+                            </div>
+
+                            <div class="bg-gray-700 rounded p-4">
+                                <h3 class="font-bold text-blue-400 mb-2">💳 ПЛАЩАНЕ</h3>
+                                <ul class="space-y-1 text-gray-300">
+                                    <li>• Месечна такса: <strong>€5 (EUR)</strong> или <strong>$5 (USD)</strong></li>
+                                    <li>• Приемаме: <strong>Visa/Mastercard</strong> ИЛИ <strong>Crypto</strong> (300 KCY токени)</li>
+                                    <li>• Без абонамент: Чатиш <strong>САМО</strong> с добавени контакти</li>
+                                </ul>
+                            </div>
+
+                            <div class="bg-gray-700 rounded p-4">
+                                <h3 class="font-bold text-purple-400 mb-2">🔍 ТЪРСАЧКИ</h3>
+                                <ul class="space-y-1 text-gray-300">
+                                    <li>• <strong>Основна:</strong> По възраст, пол, ръст, град</li>
+                                    <li>• <strong>По разстояние:</strong> Намери хора до 40,000км от теб</li>
+                                    <li>• <strong>По нужда:</strong> Намери помощ/услуги до 50км (доктор, електротехник, преводач...)</li>
+                                </ul>
+                            </div>
+
+                            <div class="bg-gray-700 rounded p-4">
+                                <h3 class="font-bold text-yellow-400 mb-2">📍 ЛОКАЦИЯ</h3>
+                                <ul class="space-y-1 text-gray-300">
+                                    <li>• Споделяш <strong>само когато искаш</strong></li>
+                                    <li>• Виждат <strong>"~30km от теб"</strong> (НЕ точен адрес)</li>
+                                </ul>
+                            </div>
+
+                            <div class="bg-red-900 border border-red-600 rounded p-4">
+                                <h3 class="font-bold text-red-300 mb-2">🆘 БУТОН "ПОМОЩ"</h3>
+                                <ul class="space-y-1 text-gray-300">
+                                    <li>• Изпраща <strong>точна локация</strong> до администратор</li>
+                                    <li>• Такса: <strong>10× месечната</strong> (€50 или $50)</li>
+                                    <li>• <strong>1 използване/месец</strong></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <button onclick="toggleHowItWorks()" class="w-full bg-blue-600 hover:bg-blue-700 rounded py-3 mt-6 font-semibold">
+                            Разбрах, затвори
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Login Form -->
                 <div class="bg-gray-800 rounded-lg p-8">
                     <form id="loginForm" class="space-y-4">
@@ -125,6 +192,11 @@
                 messageDiv.innerHTML = '<p class="text-red-400">Грешка при свързване</p>';
             }
         });
+
+        function toggleHowItWorks() {
+            const modal = document.getElementById('howItWorksModal');
+            modal.classList.toggle('hidden');
+        }
     </script>
 </body>
 </html>

@@ -719,12 +719,261 @@ function createAdminRoutes(db) {
         totalMessages: db.prepare('SELECT COUNT(*) as count FROM messages').get()?.count || 0,
         flaggedConversations: db.prepare('SELECT COUNT(*) as count FROM flagged_conversations WHERE reviewed = 0').get()?.count || 0,
         criticalWords: db.prepare('SELECT COUNT(*) as count FROM critical_words').get()?.count || 0,
-        totalRevenue: db.prepare('SELECT SUM(amount) as total FROM payment_logs WHERE status = "succeeded"').get()?.total || 0
+        totalRevenue: db.prepare('SELECT SUM(amount) as total FROM payment_logs WHERE status = "succeeded"').get()?.total || 0,
+        helpRequests: db.prepare('SELECT COUNT(*) as count FROM help_requests WHERE resolved = 0').get()?.count || 0
       };
 
       res.json(stats);
     } catch (err) {
       console.error('Get stats error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Get all help requests (emergency assistance)
+  router.get('/help-requests', (req, res) => {
+    try {
+      const { resolved } = req.query;
+      
+      let query = 'SELECT * FROM help_requests';
+      const params = [];
+      
+      if (resolved !== undefined) {
+        query += ' WHERE resolved = ?';
+        params.push(resolved === 'true' ? 1 : 0);
+      }
+      
+      query += ' ORDER BY request_time DESC LIMIT 100';
+      
+      const requests = db.prepare(query).all(...params);
+      
+      // Get emergency contacts for each request's country
+      const results = requests.map(request => {
+        const contacts = db.prepare(`
+          SELECT service_type, service_name, phone_international, phone_local, email
+          FROM emergency_contacts
+          WHERE country_code = (
+            SELECT country_code FROM users WHERE id = ?
+          )
+          AND service_type IN ('police', 'ambulance', 'hospital', 'emergency')
+          AND is_active = 1
+        `).all(request.user_id);
+        
+        return {
+          ...request,
+          emergency_contacts: contacts
+        };
+      });
+      
+      res.json({
+        total: results.length,
+        requests: results
+      });
+      
+    } catch (err) {
+      console.error('Get help requests error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Find nearby emergency services for a help request
+  router.get('/help-requests/:id/nearby-services', (req, res) => {
+    try {
+      const requestId = req.params.id;
+      
+      // Get help request
+      const request = db.prepare('SELECT * FROM help_requests WHERE id = ?').get(requestId);
+      
+      if (!request) {
+        return res.status(404).json({ error: 'Help request not found' });
+      }
+      
+      // Calculate distance helper
+      const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = 
+          Math.sin(dLat/2) * Math.sin(dLat/2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+          Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+      };
+      
+      // Find emergency contacts in database with coordinates
+      const emergencyContacts = db.prepare(`
+        SELECT * FROM emergency_contacts
+        WHERE country_code = (SELECT country_code FROM users WHERE id = ?)
+        AND service_type IN ('police', 'ambulance', 'hospital', 'fire')
+        AND latitude IS NOT NULL
+        AND longitude IS NOT NULL
+        AND is_active = 1
+      `).all(request.user_id);
+      
+      // Find users who offer emergency services within 50km
+      const emergencyUsers = db.prepare(`
+        SELECT 
+          id, full_name, phone, email, gender, offerings,
+          city, street, location_latitude, location_longitude
+        FROM users
+        WHERE 
+          is_verified = 1
+          AND (
+            offerings LIKE '%Доктор%' 
+            OR offerings LIKE '%Болница%'
+            OR offerings LIKE '%Бърза помощ%'
+            OR offerings LIKE '%Полиция%'
+          )
+          AND location_latitude IS NOT NULL
+          AND location_longitude IS NOT NULL
+          AND paid_until > datetime('now')
+      `).all();
+      
+      // Calculate distances and filter by 50km
+      const nearbyServices = [
+        ...emergencyContacts.map(contact => ({
+          type: 'official_service',
+          service_type: contact.service_type,
+          name: contact.service_name,
+          phone: contact.phone_international,
+          email: contact.email,
+          address: contact.address,
+          city: contact.city,
+          latitude: contact.latitude,
+          longitude: contact.longitude,
+          distance_km: contact.latitude && contact.longitude 
+            ? Math.round(calculateDistance(request.latitude, request.longitude, contact.latitude, contact.longitude) * 10) / 10
+            : null
+        })),
+        ...emergencyUsers.map(user => ({
+          type: 'verified_user',
+          service_type: 'user_provider',
+          name: user.full_name,
+          phone: user.phone,
+          email: user.email,
+          offerings: user.offerings,
+          address: user.street,
+          city: user.city,
+          latitude: user.location_latitude,
+          longitude: user.location_longitude,
+          distance_km: Math.round(calculateDistance(request.latitude, request.longitude, user.location_latitude, user.location_longitude) * 10) / 10
+        }))
+      ]
+      .filter(service => !service.distance_km || service.distance_km <= 50)
+      .sort((a, b) => (a.distance_km || 9999) - (b.distance_km || 9999));
+      
+      res.json({
+        request: {
+          id: request.id,
+          user: request.full_name,
+          phone: request.phone,
+          email: request.email,
+          location: {
+            latitude: request.latitude,
+            longitude: request.longitude,
+            city: request.city,
+            street: request.street
+          }
+        },
+        nearby_services: nearbyServices,
+        total: nearbyServices.length
+      });
+      
+    } catch (err) {
+      console.error('Find nearby services error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Resolve help request
+  router.put('/help-requests/:id/resolve', (req, res) => {
+    try {
+      const requestId = req.params.id;
+      const { admin_notes } = req.body;
+      
+      db.prepare(`
+        UPDATE help_requests 
+        SET resolved = 1, resolved_at = datetime('now'), admin_notes = ?
+        WHERE id = ?
+      `).run(admin_notes || null, requestId);
+      
+      res.json({ success: true });
+      
+    } catch (err) {
+      console.error('Resolve help request error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Verify user and set offerings (admin only)
+  router.put('/users/:id/verify', (req, res) => {
+    try {
+      const userId = req.params.id;
+      const { offerings } = req.body;
+      
+      if (!offerings) {
+        return res.status(400).json({ error: 'Offerings required' });
+      }
+      
+      // Validate offerings format (comma-separated, max 3)
+      const offeringsList = offerings.split(',').map(s => s.trim()).filter(Boolean);
+      if (offeringsList.length > 3) {
+        return res.status(400).json({ error: 'Maximum 3 offerings allowed' });
+      }
+      
+      // Update user
+      db.prepare(`
+        UPDATE users 
+        SET offerings = ?, is_verified = 1
+        WHERE id = ?
+      `).run(offerings, userId);
+      
+      res.json({ success: true, message: 'User verified and offerings set' });
+      
+    } catch (err) {
+      console.error('Verify user error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Remove verification from user
+  router.put('/users/:id/unverify', (req, res) => {
+    try {
+      const userId = req.params.id;
+      
+      db.prepare(`
+        UPDATE users 
+        SET is_verified = 0
+        WHERE id = ?
+      `).run(userId);
+      
+      res.json({ success: true, message: 'User verification removed. Offerings can now be edited by user.' });
+      
+    } catch (err) {
+      console.error('Unverify user error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Update verified user offerings (admin only)
+  router.put('/users/:id/offerings', (req, res) => {
+    try {
+      const userId = req.params.id;
+      const { offerings } = req.body;
+      
+      // Validate offerings
+      const offeringsList = offerings ? offerings.split(',').map(s => s.trim()).filter(Boolean) : [];
+      if (offeringsList.length > 3) {
+        return res.status(400).json({ error: 'Maximum 3 offerings allowed' });
+      }
+      
+      db.prepare('UPDATE users SET offerings = ? WHERE id = ?').run(offerings || null, userId);
+      
+      res.json({ success: true });
+      
+    } catch (err) {
+      console.error('Update offerings error:', err);
       res.status(500).json({ error: 'Server error' });
     }
   });

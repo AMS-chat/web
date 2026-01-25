@@ -1,4 +1,4 @@
-// Version: 001.00001
+// Version: 001.00002
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
@@ -17,6 +17,9 @@ const createFriendsRoutes = require('./routes/friends');
 const createMessagesRoutes = require('./routes/messages');
 const createPaymentRoutes = require('./routes/payment');
 const createAdminRoutes = require('./routes/admin');
+const createProfileRoutes = require('./routes/profile');
+const createHelpRoutes = require('./routes/help');
+const createSearchRoutes = require('./routes/search');
 
 const app = express();
 const server = http.createServer(app);
@@ -29,6 +32,15 @@ db.pragma('journal_mode = WAL');
 // Initialize database
 const schema = fs.readFileSync('db_setup.sql', 'utf8');
 db.exec(schema);
+
+// Load emergency contacts seed data (only if table is empty)
+const contactsCount = db.prepare('SELECT COUNT(*) as count FROM emergency_contacts').get();
+if (contactsCount.count === 0) {
+  console.log('📞 Loading emergency contacts seed data...');
+  const seedData = fs.readFileSync('emergency_contacts_seed.sql', 'utf8');
+  db.exec(seedData);
+  console.log('✅ Emergency contacts loaded');
+}
 
 // File upload directory
 const uploadDir = path.join(__dirname, 'uploads');
@@ -215,6 +227,9 @@ app.use('/api/payment', createPaymentRoutes(db));
 // Protected routes (require authentication)
 app.use('/api/friends', authenticate(db), createFriendsRoutes(db));
 app.use('/api/messages', authenticate(db), createMessagesRoutes(db, uploadDir));
+app.use('/api/profile', authenticate(db), createProfileRoutes(db));
+app.use('/api/help', authenticate(db), createHelpRoutes(db));
+app.use('/api/search', authenticate(db), createSearchRoutes(db));
 
 // Admin routes (separate authentication)
 app.use('/api/admin', createAdminRoutes(db));
@@ -230,7 +245,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════╗
-║     🚀 AMS Chat Server v4.0            ║
+║     🚀 AMS Chat Server v4.3            ║
 ╠════════════════════════════════════════╣
 ║  Port: ${PORT.toString().padEnd(31)}  ║
 ║  Database: SQLite (amschat.db)         ║
@@ -241,6 +256,11 @@ server.listen(PORT, () => {
 ║    ✓ Critical words monitoring         ║
 ║    ✓ Admin panel                       ║
 ║    ✓ Monthly subscription €5/$5        ║
+║    ✓ Emergency help button             ║
+║    ✓ Search by distance (0-40,000km)   ║
+║    ✓ Search by need (max 50km)         ║
+║    ✓ Service verification system       ║
+║    ✓ 20+ countries emergency contacts  ║
 ╚════════════════════════════════════════╝
   `);
 });

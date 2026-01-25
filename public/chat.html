@@ -11,7 +11,17 @@
         <!-- Sidebar - Contacts -->
         <div class="w-1/4 bg-gray-800 border-r border-gray-700">
             <div class="p-4 border-b border-gray-700">
-                <h2 class="text-xl font-bold">Contacts</h2>
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-xl font-bold">Contacts</h2>
+                    <div class="flex gap-2">
+                        <button onclick="window.location.href='profile.html'" class="text-blue-400 hover:text-blue-300" title="Настройки">
+                            ⚙️
+                        </button>
+                        <button onclick="logout()" class="text-red-400 hover:text-red-300" title="Изход">
+                            🚪
+                        </button>
+                    </div>
+                </div>
                 <button onclick="showAddContact()" class="mt-2 w-full bg-blue-600 hover:bg-blue-700 py-2 rounded">
                     + Add Contact
                 </button>
@@ -402,6 +412,13 @@
                 }
             } catch (err) {
                 console.error('Add friend error:', err);
+            }
+        }
+
+        function logout() {
+            if (confirm('Сигурни ли сте, че искате да излезете?')) {
+                localStorage.removeItem('token');
+                window.location.href = 'index.html';
             }
         }
 

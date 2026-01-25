@@ -1,6 +1,7 @@
--- Version: 001.00001
--- AMS Chat Database Schema v4.2
+-- Version: 001.00002
+-- AMS Chat Database Schema v4.3
 -- Shared between Web & Mobile App
+-- Added: code_word, current_need, offerings, email, profile edit tracking
 
 -- Users table - phone is NOT unique! phone + password_hash combination is unique
 CREATE TABLE IF NOT EXISTS users (
@@ -9,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   full_name TEXT NOT NULL,
   gender TEXT NOT NULL CHECK(gender IN ('male', 'female')),
+  birth_date TEXT,
   height_cm INTEGER,
   weight_kg INTEGER,
   country TEXT,
@@ -27,6 +29,19 @@ CREATE TABLE IF NOT EXISTS users (
   blocked_reason TEXT,
   is_reported INTEGER DEFAULT 0,
   report_count INTEGER DEFAULT 0,
+  -- New fields for enhanced functionality
+  code_word TEXT,                          -- Secret code for exact user search
+  current_need TEXT,                       -- Current need/requirement (unlimited changes)
+  offerings TEXT,                          -- What user offers (max 3, comma-separated, unlimited changes)
+  is_verified INTEGER DEFAULT 0,           -- 1 = verified profile, offerings field is READ-ONLY
+  email TEXT,                              -- Email for emergency contacts
+  hide_phone INTEGER DEFAULT 0,            -- Hide phone number (show +359123...)
+  hide_names INTEGER DEFAULT 0,            -- Hide names (show "Иван...")
+  last_profile_update TEXT,                -- Last time profile was edited
+  profile_edits_this_month INTEGER DEFAULT 0,  -- Count of edits this month
+  profile_edit_reset_date TEXT DEFAULT (datetime('now')),  -- When to reset edit counter
+  help_button_uses INTEGER DEFAULT 0,      -- Number of help button uses this month
+  help_button_reset_date TEXT DEFAULT (datetime('now')),  -- When to reset help counter
   -- Location fields (admin captured)
   location_country TEXT,
   location_city TEXT,
@@ -174,6 +189,57 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_messages_from_to ON messages(from_user_id, to_user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_flagged ON messages(flagged) WHERE flagged = 1;
 CREATE INDEX IF NOT EXISTS idx_temp_files_expires ON temp_files(expires_at);
+
+-- Emergency contacts table (police, ambulance, hospitals by country)
+CREATE TABLE IF NOT EXISTS emergency_contacts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  country_code TEXT NOT NULL,              -- 'BG', 'RU', 'LT', etc
+  service_type TEXT NOT NULL,              -- 'police', 'ambulance', 'hospital', 'fire'
+  service_name TEXT,                       -- e.g., "4th Police Station", "Pirogov Hospital"
+  phone_international TEXT NOT NULL,       -- +359-2-982-1111
+  phone_local TEXT,                        -- 166, 112, etc
+  email TEXT,                              -- Contact email
+  address TEXT,                            -- Full address
+  latitude REAL,                           -- GPS coordinates
+  longitude REAL,
+  city TEXT,
+  is_active INTEGER DEFAULT 1,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Help button requests (emergency assistance)
+CREATE TABLE IF NOT EXISTS help_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  phone TEXT NOT NULL,
+  full_name TEXT NOT NULL,
+  email TEXT,
+  gender TEXT,
+  age INTEGER,
+  country TEXT,
+  city TEXT,
+  street TEXT,
+  street_number TEXT,
+  latitude REAL NOT NULL,
+  longitude REAL NOT NULL,
+  request_time TEXT DEFAULT (datetime('now')),
+  resolved INTEGER DEFAULT 0,
+  resolved_at TEXT,
+  admin_notes TEXT,
+  charge_amount REAL,                      -- €50 or $50
+  charge_currency TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Indexes for new tables
+CREATE INDEX IF NOT EXISTS idx_emergency_country ON emergency_contacts(country_code);
+CREATE INDEX IF NOT EXISTS idx_emergency_service ON emergency_contacts(service_type);
+CREATE INDEX IF NOT EXISTS idx_emergency_location ON emergency_contacts(latitude, longitude);
+CREATE INDEX IF NOT EXISTS idx_help_requests_user ON help_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_help_requests_resolved ON help_requests(resolved);
+CREATE INDEX IF NOT EXISTS idx_help_requests_time ON help_requests(request_time);
+CREATE INDEX IF NOT EXISTS idx_users_offerings ON users(offerings);
+CREATE INDEX IF NOT EXISTS idx_users_need ON users(current_need);
 CREATE INDEX IF NOT EXISTS idx_friends_user1 ON friends(user_id1);
 CREATE INDEX IF NOT EXISTS idx_friends_user2 ON friends(user_id2);
 CREATE INDEX IF NOT EXISTS idx_flagged_conv_reviewed ON flagged_conversations(reviewed);
