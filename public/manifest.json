@@ -1,7 +1,7 @@
 {
-  "name": "AMS Chat - Secure Messaging",
-  "short_name": "AMS Chat",
-  "description": "Secure anonymous messaging with end-to-end encryption",
+  "name": "ALSEC - Anonymous Location Search Engine-Chat",
+  "short_name": "ALSEC",
+  "description": "Anonymous location-based search engine with secure messaging",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#3B82F6",
@@ -22,14 +22,14 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["social", "communication"],
+  "categories": ["social", "communication", "utilities"],
   "screenshots": [],
   "shortcuts": [
     {
-      "name": "New Chat",
-      "short_name": "Chat",
-      "description": "Start a new conversation",
-      "url": "/?action=new-chat",
+      "name": "Search",
+      "short_name": "Search",
+      "description": "Search nearby users",
+      "url": "/?action=search",
       "icons": [
         {
           "src": "/icon-192.png",
