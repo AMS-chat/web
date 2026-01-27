@@ -1,49 +1,83 @@
-# Environment variables - НИКОГА не commit-вай!
+# Environment & Secrets
 .env
 .env.local
 .env.production
-.env.*.local
 
-# Database files - SENSITIVE DATA!
+# Version tracking files (INCLUDE in Git)
+# *.version files are tracked
+
+# Database
 *.db
+*.db-journal
 *.db-shm
 *.db-wal
-*.sqlite
-*.sqlite3
 
-# File uploads - User data!
-uploads/
-temp/
-
-# Node modules
+# Dependencies
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Uploads & User Data
+uploads/*
+!uploads/.gitkeep
 
 # Logs
 logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pm2-*.log
 
-# OS files
+# Testing
+coverage/
+.nyc_output/
+test-*.db
+
+# OS Files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
 
-# IDE
-.vscode/
+# Editor directories and files
 .idea/
-*.swp
-*.swo
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 *~
 
-# PM2
-.pm2/
-ecosystem.config.js
-
-# Build
+# Build outputs
 dist/
 build/
+out/
 
-# Backup files
-*.backup
+# Temporary files
+tmp/
+temp/
+*.tmp
 *.bak
+*.swp
+*.swo
+
+# Mobile specific (if using React Native)
+android/
+ios/
+*.xcworkspace
+*.xcodeproj
+
+# Sensitive files
+*.pem
+*.key
+*.cert
+id_rsa*
+credentials.json
+service-account.json

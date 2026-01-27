@@ -86,7 +86,7 @@ const clients = new Map();
 
 // Cleanup expired files every hour
 setInterval(() => {
-  const expired = db.prepare('SELECT * FROM temp_files WHERE expires_at < datetime("now")').all();
+  const expired = db.prepare("SELECT * FROM temp_files WHERE expires_at < datetime('now')").all();
   
   expired.forEach(file => {
     try {
@@ -98,7 +98,7 @@ setInterval(() => {
     }
   });
   
-  db.prepare('DELETE FROM temp_files WHERE expires_at < datetime("now")').run();
+  db.prepare("DELETE FROM temp_files WHERE expires_at < datetime('now')").run();
   console.log(`🧹 Cleaned up ${expired.length} expired files`);
 }, 60 * 60 * 1000);
 

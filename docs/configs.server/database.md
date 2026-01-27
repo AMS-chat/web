@@ -62,6 +62,7 @@ sqlite3 amschat.db "SELECT name FROM sqlite_master WHERE type='table';"
 **Трябва да видиш:**
 ```
 users
+sqlite_sequence          ← Системна таблица (auto-created за AUTOINCREMENT)
 sessions
 friends
 messages
