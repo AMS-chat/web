@@ -1,4 +1,4 @@
-// Version: 001.00001
+// Version: 001.00002
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const geoip = require('geoip-lite');
