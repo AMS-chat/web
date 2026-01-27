@@ -15,7 +15,7 @@ cd /var/www/ams-chat-web
 ls -la *.db
 ```
 
-**Ако видиш `ams_chat.db`** - вече я имаш! ✅
+**Ако видиш `amschat.db`** - вече я имаш! ✅
 
 **Ако НЕ виждаш нищо** - продължи по-долу ⬇️
 
@@ -27,15 +27,15 @@ ls -la *.db
 cd /var/www/ams-chat-web
 
 # Създай базата от SQL schema
-sqlite3 ams_chat.db < db_setup.sql
+sqlite3 amschat.db < db_setup.sql
 
 # Провери дали е създадена
-ls -la ams_chat.db
+ls -la amschat.db
 ```
 
 **Трябва да видиш:**
 ```
--rw-r--r-- 1 user user XXXXX Jan 27 XX:XX ams_chat.db
+-rw-r--r-- 1 user user XXXXX Jan 27 XX:XX amschat.db
 ```
 
 ---
@@ -44,10 +44,10 @@ ls -la ams_chat.db
 
 ```bash
 # Добави emergency contacts (74 записа)
-sqlite3 ams_chat.db < emergency_contacts_seed.sql
+sqlite3 amschat.db < emergency_contacts_seed.sql
 
 # Провери
-sqlite3 ams_chat.db "SELECT COUNT(*) FROM emergency_contacts;"
+sqlite3 amschat.db "SELECT COUNT(*) FROM emergency_contacts;"
 # Трябва: 74
 ```
 
@@ -56,7 +56,7 @@ sqlite3 ams_chat.db "SELECT COUNT(*) FROM emergency_contacts;"
 ### **4. Провери таблиците**
 
 ```bash
-sqlite3 ams_chat.db "SELECT name FROM sqlite_master WHERE type='table';"
+sqlite3 amschat.db "SELECT name FROM sqlite_master WHERE type='table';"
 ```
 
 **Трябва да видиш:**
@@ -81,13 +81,13 @@ help_requests
 
 ```bash
 # Файл permissions
-chmod 644 ams_chat.db
+chmod 644 amschat.db
 
 # Owner
-chown $USER:$USER ams_chat.db
+chown $USER:$USER amschat.db
 
 # Провери
-ls -la ams_chat.db
+ls -la amschat.db
 ```
 
 ---
@@ -103,7 +103,7 @@ pm2 logs ams-chat --lines 30
 
 **Трябва да видиш в logs:**
 ```
-Database: SQLite (ams_chat.db)
+Database: SQLite (amschat.db)
 ```
 
 **БЕЗ errors!** ✅
@@ -114,7 +114,7 @@ Database: SQLite (ams_chat.db)
 
 ```bash
 # 1. Влез в базата
-sqlite3 ams_chat.db
+sqlite3 amschat.db
 
 # 2. Виж таблиците
 .tables
@@ -143,7 +143,7 @@ SELECT service_name, phone_local FROM emergency_contacts LIMIT 5;
 ```
 db_setup.sql                    ← Schema (CREATE TABLE statements)
 emergency_contacts_seed.sql     ← Emergency data (74 records)
-ams_chat.db                     ← Базата (създава се от горните)
+amschat.db                     ← Базата (създава се от горните)
 ```
 
 ---
@@ -171,19 +171,19 @@ scp emergency_contacts_seed.sql user@server:/var/www/ams-chat-web/
 cd /var/www/ams-chat-web
 
 # Създай база
-sqlite3 ams_chat.db < db_setup.sql
+sqlite3 amschat.db < db_setup.sql
 
 # Seed data
-sqlite3 ams_chat.db < emergency_contacts_seed.sql
+sqlite3 amschat.db < emergency_contacts_seed.sql
 
 # Permissions
-chmod 644 ams_chat.db
+chmod 644 amschat.db
 
 # Restart
 pm2 restart ams-chat
 
 # Test
-sqlite3 ams_chat.db "SELECT COUNT(*) FROM emergency_contacts;"
+sqlite3 amschat.db "SELECT COUNT(*) FROM emergency_contacts;"
 # Трябва: 74
 ```
 

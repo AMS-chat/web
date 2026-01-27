@@ -5,7 +5,7 @@
 
 ALSEC (Anonymous Location Search Engine-Chat) използва **SQLite** - file-based database без нужда от отделен сървър.
 
-**Database файл:** `ams_chat.db`
+**Database файл:** `amschat.db`
 
 ---
 
@@ -348,23 +348,23 @@ CREATE INDEX idx_critical_words_word ON critical_words(word);
 cd /var/www/ams-chat-web
 
 # Създай базата
-sqlite3 ams_chat.db < db_setup.sql
+sqlite3 amschat.db < db_setup.sql
 
 # Seed emergency contacts
-sqlite3 ams_chat.db < emergency_contacts_seed.sql
+sqlite3 amschat.db < emergency_contacts_seed.sql
 
 # Permissions
-chmod 644 ams_chat.db
+chmod 644 amschat.db
 ```
 
 ### **Провери таблиците:**
 ```bash
-sqlite3 ams_chat.db "SELECT name FROM sqlite_master WHERE type='table';"
+sqlite3 amschat.db "SELECT name FROM sqlite_master WHERE type='table';"
 ```
 
 ### **Провери emergency contacts:**
 ```bash
-sqlite3 ams_chat.db "SELECT COUNT(*) FROM emergency_contacts;"
+sqlite3 amschat.db "SELECT COUNT(*) FROM emergency_contacts;"
 # Трябва: 74
 ```
 
@@ -383,7 +383,7 @@ sqlite3 ams_chat.db "SELECT COUNT(*) FROM emergency_contacts;"
 node -e "const bcrypt = require('bcrypt'); bcrypt.hash('YourNewPassword123', 10, (err, hash) => console.log(hash));"
 
 # Update in DB
-sqlite3 ams_chat.db
+sqlite3 amschat.db
 UPDATE admin_users SET password_hash = 'NEW_HASH' WHERE username = 'admin';
 .exit
 ```

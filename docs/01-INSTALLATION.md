@@ -75,13 +75,13 @@ npm install --production
 
 ```bash
 # Създай базата данни
-sqlite3 ams_chat.db < db_setup.sql
+sqlite3 amschat.db < db_setup.sql
 
 # Seed emergency contacts
-sqlite3 ams_chat.db < emergency_contacts_seed.sql
+sqlite3 amschat.db < emergency_contacts_seed.sql
 
 # Провери таблиците
-sqlite3 ams_chat.db "SELECT name FROM sqlite_master WHERE type='table';"
+sqlite3 amschat.db "SELECT name FROM sqlite_master WHERE type='table';"
 ```
 
 **Очакван резултат:**
@@ -102,13 +102,13 @@ help_requests
 
 **Провери emergency contacts:**
 ```bash
-sqlite3 ams_chat.db "SELECT COUNT(*) FROM emergency_contacts;"
+sqlite3 amschat.db "SELECT COUNT(*) FROM emergency_contacts;"
 # Трябва да покаже ~74 записа
 ```
 
 **Set permissions:**
 ```bash
-chmod 644 ams_chat.db
+chmod 644 amschat.db
 ```
 
 ---
@@ -340,7 +340,7 @@ cat *.version
 /var/www/ams-chat-web/
 ├── server.js              # Backend entry point
 ├── package.json
-├── ams_chat.db           # SQLite database
+├── amschat.db           # SQLite database
 ├── .env                  # Environment config (НЕ в Git!)
 ├── 00001.version         # Version tracking
 ├── docs/                 # Documentation
@@ -384,7 +384,7 @@ sudo tail -f /var/log/nginx/error.log
 ### **Database locked:**
 ```bash
 pm2 stop ams-chat
-chmod 644 ams_chat.db
+chmod 644 amschat.db
 pm2 start ams-chat
 ```
 
@@ -392,7 +392,7 @@ pm2 start ams-chat
 ```bash
 sudo chown -R $USER:$USER /var/www/ams-chat-web
 chmod 600 .env
-chmod 644 ams_chat.db
+chmod 644 amschat.db
 chmod 777 uploads
 ```
 
@@ -402,7 +402,7 @@ chmod 777 uploads
 
 - [ ] Git clone завършен
 - [ ] Dependencies инсталирани (`npm install`)
-- [ ] Database инициализирана (`ams_chat.db`)
+- [ ] Database инициализирана (`amschat.db`)
 - [ ] Emergency contacts seeded (~74 records)
 - [ ] `.env` конфигуриран с LIVE Stripe keys
 - [ ] PM2 стартиран и saved
