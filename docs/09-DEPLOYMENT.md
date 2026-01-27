@@ -1,34 +1,31 @@
-<!-- Version: 001.00001 -->
+<!-- Version: 001.00002 -->
 # 09 - Production Deployment
 
-## 🚀 Deploy to Production
+## 🚀 Deploy ALSEC to Production
 
-Пълно ръководство за deploy на AMS Chat на production server.
+Пълно ръководство за deploy на ALSEC (Anonymous Location Search Engine-Chat) на production server чрез **Git**.
 
 ---
 
 ## 📋 Pre-deployment Checklist
 
-- [ ] Change admin password
-- [ ] Generate new JWT_SECRET
-- [ ] Stripe LIVE keys
-- [ ] HTTPS certificate
-- [ ] Firewall configured
-- [ ] Backups setup
-- [ ] Update ADMIN_ALLOWED_IPS
-- [ ] Test payments in test mode first
+- [ ] Git repository създаден (GitHub/GitLab)
+- [ ] Stripe LIVE keys ready
+- [ ] Домейн готов или ще използваш IP
+- [ ] SSH достъп до сървъра
+- [ ] Firewall configured (ports 22, 80, 443)
 
 ---
 
 ## 🖥️ Server Requirements
 
-**Minimum:**
+**Minimum (до 100 users):**
 - CPU: 1 core
 - RAM: 1GB
 - Disk: 10GB
 - OS: Ubuntu 20.04+ / Debian 11+
 
-**Recommended:**
+**Recommended (до 1000 users):**
 - CPU: 2 cores
 - RAM: 2GB
 - Disk: 20GB SSD
@@ -40,7 +37,7 @@
 
 ---
 
-## 🔧 Server Setup
+## 🔧 Server Setup (One-time)
 
 ### **1. Update System**
 
@@ -48,47 +45,75 @@
 sudo apt update && sudo apt upgrade -y
 ```
 
-### **2. Install Node.js**
+### **2. Install Node.js 18.x**
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt install -y nodejs
-node --version  # Should be v18+
+node --version  # Should be v18.20.8 or similar
 ```
 
 ### **3. Install SQLite**
 
 ```bash
 sudo apt install -y sqlite3
-sqlite3 --version
+sqlite3 --version  # Should be 3.45+
 ```
 
-### **4. Install Nginx**
+### **4. Install Git**
+
+```bash
+sudo apt install -y git
+```
+
+### **5. Install PM2 (Process Manager)**
+
+```bash
+sudo npm install -g pm2
+```
+
+### **6. Install Nginx**
 
 ```bash
 sudo apt install -y nginx
 ```
 
-### **5. Install Certbot (Let's Encrypt)**
+### **7. Install Certbot (for SSL)**
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
 ```
 
----
-
-## 📦 Deploy Application
-
-### **1. Clone/Upload**
+### **8. Configure Firewall**
 
 ```bash
-cd /var/www
-sudo mkdir ams-chat
-sudo chown $USER:$USER ams-chat
-cd ams-chat
+sudo ufw allow 22    # SSH
+sudo ufw allow 80    # HTTP
+sudo ufw allow 443   # HTTPS
+sudo ufw enable
+```
 
-# Upload files (scp, rsync, git clone, etc.)
-scp -r AMS-chat-web/* user@server:/var/www/ams-chat/
+---
+
+## 📦 Deploy Application (Git Method)
+
+### **1. Clone Repository**
+
+```bash
+# SSH към сървъра
+ssh user@your-server
+
+# Отиди в /var/www
+cd /var/www
+
+# Clone (ПРОМЕНИ URL-a!)
+sudo git clone https://github.com/YOUR_USERNAME/web.git ams-chat-web
+
+# Ownership
+sudo chown -R $USER:$USER ams-chat-web
+
+# Влез
+cd ams-chat-web
 ```
 
 ### **2. Install Dependencies**

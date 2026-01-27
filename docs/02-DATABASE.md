@@ -1,13 +1,15 @@
-<!-- Version: 001.00001 -->
+<!-- Version: 001.00002 -->
 # 02 - База данни
 
 ## 🗄️ SQLite Database Schema
 
-AMS Chat използва **SQLite** - file-based database без нужда от отделен сървър.
+ALSEC (Anonymous Location Search Engine-Chat) използва **SQLite** - file-based database без нужда от отделен сървър.
+
+**Database файл:** `ams_chat.db`
 
 ---
 
-## 📊 Таблици
+## 📊 Таблици (v4.3)
 
 ### **1. users** - Потребители
 ```sql

@@ -1,26 +1,50 @@
-<!-- Version: 001.00001 -->
-# 01 - Инсталация
+<!-- Version: 001.00002 -->
+# 01 - Инсталация (Production Server)
 
 ## 📦 Системни изисквания
 
-- **Node.js:** >= 16.x
-- **npm:** >= 8.x (или yarn >= 1.22)
-- **SQLite3:** >= 3.x
+- **Node.js:** >= 18.x (препоръчвам 18.20.8)
+- **npm:** >= 8.x
+- **SQLite3:** >= 3.45.x
 - **Git:** Последна версия
-- **OS:** Linux, macOS, или Windows (с WSL2)
+- **PM2:** За process management
+- **Nginx:** За reverse proxy
+- **OS:** Linux (Ubuntu 20.04+ / Debian)
 
 ---
 
 ## 🔧 Стъпка 1: Клониране на проекта
 
-```bash
-# Ако имаш git repo
-git clone <your-repo-url>
-cd AMS-chat-web
+### **Препоръчван метод: Git Clone**
 
-# Или разархивирай ZIP файла
-unzip AMS-chat-web.zip
-cd AMS-chat-web
+```bash
+# SSH към сървъра
+ssh user@your-server
+
+# Отиди в /var/www
+cd /var/www
+
+# Clone проекта
+sudo git clone https://github.com/YOUR_USERNAME/web.git ams-chat-web
+
+# Промени ownership
+sudo chown -R $USER:$USER ams-chat-web
+
+# Влез в проекта
+cd ams-chat-web
+```
+
+### **Алтернатива: Архив upload**
+
+```bash
+# На локалния компютър
+scp AMS-Chat.rar user@server:/tmp/
+
+# На сървъра
+cd /tmp
+unrar x AMS-Chat.rar
+sudo mv 2026-01-21-AMS-chat-web /var/www/ams-chat-web
+sudo chown -R $USER:$USER /var/www/ams-chat-web
 ```
 
 ---
@@ -28,18 +52,22 @@ cd AMS-chat-web
 ## 📥 Стъпка 2: Инсталация на зависимости
 
 ```bash
-npm install
+cd /var/www/ams-chat-web
+npm install --production
 ```
 
 **Основни пакети:**
 - `express` - Web framework
-- `sqlite3` - Database
+- `better-sqlite3` - SQLite database
 - `bcrypt` - Password hashing
-- `jsonwebtoken` - Authentication
 - `multer` - File uploads
 - `stripe` - Payments
 - `ws` - WebSocket за real-time chat
 - `uuid` - Unique IDs
+- `geoip-lite` - IP geolocation
+- `helmet` - Security headers
+- `cors` - Cross-origin requests
+- `dotenv` - Environment variables
 
 ---
 
@@ -47,10 +75,13 @@ npm install
 
 ```bash
 # Създай базата данни
-sqlite3 chat.db < db_setup.sql
+sqlite3 ams_chat.db < db_setup.sql
 
-# Провери дали е създадена
-sqlite3 chat.db "SELECT name FROM sqlite_master WHERE type='table';"
+# Seed emergency contacts
+sqlite3 ams_chat.db < emergency_contacts_seed.sql
+
+# Провери таблиците
+sqlite3 ams_chat.db "SELECT name FROM sqlite_master WHERE type='table';"
 ```
 
 **Очакван резултат:**
@@ -65,239 +96,322 @@ critical_words
 flagged_conversations
 reports
 admin_users
+emergency_contacts
+help_requests
 ```
 
-**Default admin credentials:**
-- Username: `admin`
-- Password: `admin123` ⚠️ **СМЕНИ ВЕДНАГА!**
+**Провери emergency contacts:**
+```bash
+sqlite3 ams_chat.db "SELECT COUNT(*) FROM emergency_contacts;"
+# Трябва да покаже ~74 записа
+```
+
+**Set permissions:**
+```bash
+chmod 644 ams_chat.db
+```
 
 ---
 
 ## ⚙️ Стъпка 4: Конфигурация (.env файл)
 
 ```bash
+# Копирай template
 cp .env.example .env
-nano .env  # или vim, code, etc.
+
+# Редактирай
+nano .env
 ```
 
-**Минимална конфигурация:**
+**Production конфигурация:**
 ```env
+# Stripe (ВАЖНО: live keys за production!)
+STRIPE_SECRET_KEY=sk_live_YOUR_REAL_KEY
+STRIPE_PUBLISHABLE_KEY=pk_live_YOUR_REAL_KEY
+
 # Server
 PORT=3000
-NODE_ENV=development
+NODE_ENV=production
 
-# Database
-DB_PATH=./chat.db
+# CORS (добави твоя домейн!)
+ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 
-# JWT Secret (генерирай с: openssl rand -base64 32)
-JWT_SECRET=your-secret-key-here
+# Admin IP Protection (добави твоя IP!)
+# Намери IP: https://whatismyipaddress.com/
+ADMIN_ALLOWED_IPS=127.0.0.1,::1,YOUR_IP_ADDRESS
+```
 
-# Stripe (взимаш от dashboard.stripe.com)
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_PUBLISHABLE_KEY=pk_test_...
+**Save:** `Ctrl+X` → `Y` → `Enter`
 
-# Admin IPs (разделени със запетая)
-ADMIN_ALLOWED_IPS=127.0.0.1,::1
-
-# File uploads
-UPLOAD_DIR=./uploads
-MAX_FILE_SIZE=104857600  # 100MB in bytes
-
-# Location APIs (всички са БЕЗПЛАТНИ!)
-NOMINATIM_URL=https://nominatim.openstreetmap.org
-IPAPI_URL=https://ipapi.co/json
+**Set permissions:**
+```bash
+chmod 600 .env
 ```
 
 **Виж [03-ENVIRONMENT.md](./03-ENVIRONMENT.md) за пълен списък.**
 
 ---
 
-## 🚀 Стъпка 5: Стартиране
+## 📁 Стъпка 5: Създай uploads директория
 
-### Development mode:
 ```bash
-npm run dev
+mkdir -p uploads
+chmod 777 uploads
 ```
-
-### Production mode:
-```bash
-npm start
-```
-
-**Сървърът ще стартира на:** http://localhost:3000
 
 ---
 
-## ✅ Стъпка 6: Проверка
+## 🚀 Стъпка 6: Стартиране с PM2
 
-### 1. Test homepage:
+### **Install PM2:**
 ```bash
-curl http://localhost:3000
+sudo npm install -g pm2
 ```
 
-Трябва да видиш HTML страницата.
-
-### 2. Test API:
+### **Start server:**
 ```bash
-# Health check
+cd /var/www/ams-chat-web
+
+# Start
+pm2 start server.js --name ams-chat
+
+# Save PM2 config
+pm2 save
+
+# Setup auto-start при reboot
+pm2 startup systemd
+# Копирай и изпълни командата която PM2 ти даде!
+```
+
+### **PM2 команди:**
+```bash
+pm2 status              # Виж статус
+pm2 logs ams-chat       # Виж logs
+pm2 restart ams-chat    # Рестартирай
+pm2 stop ams-chat       # Спри
+pm2 delete ams-chat     # Изтрий process
+```
+
+---
+
+## ✅ Стъпка 7: Проверка
+
+### **Test backend:**
+```bash
 curl http://localhost:3000/api/health
+# Трябва да върне: {"status":"ok"}
 ```
 
-### 3. Test admin login:
+### **Check PM2:**
 ```bash
-curl -X POST http://localhost:3000/api/admin/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}'
+pm2 status
+# Трябва да видиш 'ams-chat' online
 ```
 
-Трябва да получиш token.
-
----
-
-## 📱 Mobile App (AMS-chat-app)
-
-### Допълнителни стъпки за React Native:
-
+### **Check logs:**
 ```bash
-cd AMS-chat-app
-npm install
-
-# Инсталирай Expo CLI ако нямаш
-npm install -g expo-cli
-
-# Инсталирай location dependencies
-npx expo install expo-location
-npm install axios
-
-# Стартирай
-npx expo start
-```
-
-**Scan QR code** с Expo Go app (iOS/Android)
-
----
-
-## 🔒 Стъпка 7: Security setup
-
-### 1. Смени admin паролата:
-```bash
-sqlite3 chat.db
-```
-
-```sql
--- Генерирай нов hash с bcrypt (10 rounds)
--- Пример за парола "MyNewPassword123"
-UPDATE admin_users 
-SET password_hash = '$2b$10$NEW_HASH_HERE'
-WHERE username = 'admin';
-```
-
-**Или използвай Node.js script:**
-```bash
-node -e "const bcrypt = require('bcrypt'); bcrypt.hash('MyNewPassword123', 10, (err, hash) => console.log(hash));"
-```
-
-### 2. Промени JWT_SECRET:
-```bash
-openssl rand -base64 32
-```
-Копирай в `.env`
-
-### 3. Ограничи admin IPs:
-```env
-ADMIN_ALLOWED_IPS=Your.Server.IP,Another.IP
+pm2 logs ams-chat --lines 50
 ```
 
 ---
 
-## 🌐 HTTPS Setup (за Location API)
+## 🌐 Стъпка 8: Nginx Setup
 
-Geolocation API изисква HTTPS на production!
+### **Install Nginx:**
+```bash
+sudo apt-get update
+sudo apt-get install nginx
+```
 
-### Option 1: Nginx Reverse Proxy
+### **Create config:**
+```bash
+sudo nano /etc/nginx/sites-available/ams-chat
+```
+
+**Paste:**
 ```nginx
 server {
-    listen 443 ssl;
-    server_name yourdomain.com;
+    listen 80;
+    server_name yourdomain.com www.yourdomain.com;
 
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
-
+    # Web Frontend (Static Files)
     location / {
+        root /var/www/ams-chat-web/public;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API Backend (Proxy to Node.js)
+    location /api/ {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_cache_bypass $http_upgrade;
     }
+
+    # WebSocket Support
+    location /socket.io/ {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+    }
+
+    # File Uploads
+    client_max_body_size 10M;
 }
 ```
 
-### Option 2: Cloudflare (FREE)
-1. Добави домейна в Cloudflare
-2. SSL/TLS mode: **Full**
-3. Auto HTTPS redirects: **ON**
+### **Activate:**
+```bash
+# Create symbolic link
+sudo ln -s /etc/nginx/sites-available/ams-chat /etc/nginx/sites-enabled/
+
+# Remove default (optional)
+sudo rm /etc/nginx/sites-enabled/default
+
+# Test config
+sudo nginx -t
+
+# Restart Nginx
+sudo systemctl restart nginx
+```
 
 ---
 
-## 📂 Директории структура след инсталация
+## 🔒 Стъпка 9: SSL Setup (HTTPS)
+
+**Geolocation API изисква HTTPS на production!**
+
+```bash
+# Install Certbot
+sudo apt-get install certbot python3-certbot-nginx
+
+# Get SSL certificate
+sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+
+# Follow prompts:
+# - Email: your@email.com
+# - Agree to terms: Y
+# - Redirect HTTP to HTTPS: 2 (Yes)
+
+# Test auto-renewal
+sudo certbot renew --dry-run
+```
+
+**Certbot автоматично:**
+- Създава SSL сертификати
+- Обновява Nginx config
+- Setup auto-renewal
+
+---
+
+## 🔄 Updates (Git Pull)
+
+```bash
+# SSH към сървъра
+ssh user@server
+
+# Pull промените
+cd /var/www/ams-chat-web
+git pull
+
+# Install нови dependencies (ако има)
+npm install --production
+
+# Restart backend
+pm2 restart ams-chat
+
+# Check version
+cat *.version
+# Ще видиш номера на версията (напр. 00002.version)
+```
+
+---
+
+## 📂 Финална структура
 
 ```
-AMS-chat-web/
-├── docs/              # Документация
-├── middleware/        # Auth, monitoring
-├── public/           # Frontend files
-├── routes/           # API endpoints
-├── uploads/          # User uploaded files (създава се автоматично)
-├── utils/            # Helper functions
-├── chat.db           # SQLite database
-├── .env              # Environment variables (НЕ commit-вай!)
-├── .env.example      # Example config
+/var/www/ams-chat-web/
+├── server.js              # Backend entry point
 ├── package.json
-└── server.js         # Entry point
+├── ams_chat.db           # SQLite database
+├── .env                  # Environment config (НЕ в Git!)
+├── 00001.version         # Version tracking
+├── docs/                 # Documentation
+├── middleware/           # Auth, monitoring
+├── public/               # Frontend HTML/CSS/JS
+│   ├── index.html       # Login page (главна страница)
+│   ├── chat.html
+│   ├── profile.html
+│   └── search.html
+├── routes/               # API endpoints
+├── utils/                # Helper functions
+└── uploads/              # User uploads
+```
+
+**Nginx сервира:**
+- Frontend: `/var/www/ams-chat-web/public/`
+- Backend API: `localhost:3000` (proxy)
+
+---
+
+## 🐛 Troubleshooting
+
+### **Port 3000 заet:**
+```bash
+sudo lsof -i :3000
+# Убий процеса или промени PORT в .env
+```
+
+### **PM2 не стартира:**
+```bash
+cd /var/www/ams-chat-web
+node server.js  # Test ръчно
+```
+
+### **Nginx error:**
+```bash
+sudo nginx -t              # Test config
+sudo tail -f /var/log/nginx/error.log
+```
+
+### **Database locked:**
+```bash
+pm2 stop ams-chat
+chmod 644 ams_chat.db
+pm2 start ams-chat
+```
+
+### **Permission denied:**
+```bash
+sudo chown -R $USER:$USER /var/www/ams-chat-web
+chmod 600 .env
+chmod 644 ams_chat.db
+chmod 777 uploads
 ```
 
 ---
 
-## 🐛 Common Issues
+## ✅ Production Checklist
 
-### **"Cannot find module 'express'"**
-```bash
-npm install
-```
-
-### **"EADDRINUSE: address already in use"**
-```bash
-# Промени PORT в .env
-PORT=3001
-```
-
-### **"Database locked"**
-```bash
-# Затвори други SQLite connections
-pkill sqlite3
-```
-
-### **"Permission denied" на uploads/**
-```bash
-mkdir -p uploads
-chmod 755 uploads
-```
-
----
-
-## ✅ Checklist
-
-- [ ] Node.js инсталиран
+- [ ] Git clone завършен
 - [ ] Dependencies инсталирани (`npm install`)
-- [ ] База данни създадена (`sqlite3 chat.db < db_setup.sql`)
-- [ ] `.env` файл конфигуриран
-- [ ] Admin парола сменена
-- [ ] Server стартира успешно
-- [ ] Stripe тест mode активиран
-- [ ] HTTPS конфигуриран (за production)
+- [ ] Database инициализирана (`ams_chat.db`)
+- [ ] Emergency contacts seeded (~74 records)
+- [ ] `.env` конфигуриран с LIVE Stripe keys
+- [ ] PM2 стартиран и saved
+- [ ] PM2 startup enabled
+- [ ] Nginx конфигуриран
+- [ ] SSL certificate installed (HTTPS)
+- [ ] Firewall ports open (80, 443, 22)
+- [ ] Test: https://yourdomain.com работи
 
 ---
 
-**Следващо:** [02-DATABASE.md](./02-DATABASE.md) - Database schema и миграции
+**Следващо:** [02-DATABASE.md](./02-DATABASE.md) - Database schema и структура

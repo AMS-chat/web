@@ -1,32 +1,67 @@
-<!-- Version: 001.00001 -->
+<!-- Version: 001.00002 -->
 # 03 - Environment Variables
 
 ## ⚙️ .env файл конфигурация
 
-Всички environment variables за AMS Chat.
+Всички environment variables за ALSEC (Anonymous Location Search Engine-Chat).
+
+**ВАЖНО:** `.env` файл НЕ се commit-ва в Git! Добавен е в `.gitignore`.
 
 ---
 
-## 📋 Пълен .env Template
+## 📋 Production .env Template
 
 ```env
 # ============================================
 # SERVER CONFIGURATION
 # ============================================
 PORT=3000
-NODE_ENV=development
+NODE_ENV=production
 HOST=0.0.0.0
 
 # ============================================
-# DATABASE
+# STRIPE PAYMENTS (LIVE KEYS!)
 # ============================================
-DB_PATH=./chat.db
+# Get from https://dashboard.stripe.com/apikeys
+STRIPE_SECRET_KEY=sk_live_YOUR_REAL_KEY
+STRIPE_PUBLISHABLE_KEY=pk_live_YOUR_REAL_KEY
+
+# ============================================
+# CORS & SECURITY
+# ============================================
+# Add your domain(s) - comma separated
+ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+
+# ============================================
+# ADMIN ACCESS
+# ============================================
+# Admin IP Protection (find your IP: https://whatismyipaddress.com/)
+ADMIN_ALLOWED_IPS=127.0.0.1,::1,YOUR_IP_ADDRESS
+```
+
+**Минимални задължителни полета за production:**
+- `STRIPE_SECRET_KEY` - LIVE key от Stripe
+- `STRIPE_PUBLISHABLE_KEY` - LIVE key от Stripe
+- `ALLOWED_ORIGINS` - Твоя домейн
+- `ADMIN_ALLOWED_IPS` - Твоя IP адрес
+
+---
+
+## 📋 Пълен .env Template (Всички опции)
+
+```env
+# ============================================
+# SERVER CONFIGURATION
+# ============================================
+PORT=3000
+NODE_ENV=production
+HOST=0.0.0.0
 
 # ============================================
 # SECURITY
 # ============================================
-# JWT Secret (generate with: openssl rand -base64 32)
-JWT_SECRET=your-256-bit-secret-key-here-change-this
+# JWT Secret (not used currently, but available)
+JWT_SECRET=your-256-bit-secret-key-here
 
 # JWT Expiration
 JWT_EXPIRES_IN=7d
@@ -43,16 +78,22 @@ ADMIN_ALLOWED_IPS=127.0.0.1,::1,Your.Server.IP
 # ============================================
 # STRIPE PAYMENTS
 # ============================================
-# Get from https://dashboard.stripe.com/test/apikeys
-STRIPE_SECRET_KEY=sk_test_51...
-STRIPE_PUBLISHABLE_KEY=pk_test_51...
+# PRODUCTION: Use sk_live_... and pk_live_...
+# TESTING: Use sk_test_... and pk_test_...
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_PUBLISHABLE_KEY=pk_live_...
 
 # Stripe Webhook Secret (from webhook endpoint)
 STRIPE_WEBHOOK_SECRET=whsec_...
 
-# Payment amounts
-STRIPE_PRICE_EUR=500
-STRIPE_PRICE_USD=500
+# Payment amounts (in cents)
+STRIPE_PRICE_EUR=500   # €5.00
+STRIPE_PRICE_USD=500   # $5.00
+
+# ============================================
+# CORS
+# ============================================
+ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 
 # ============================================
 # FILE UPLOADS
