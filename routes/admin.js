@@ -1,4 +1,4 @@
-// Version: 001.00001
+// Version: 001.00002
 const express = require('express');
 const { hashPassword, verifyPassword } = require('../utils/password');
 
@@ -974,6 +974,114 @@ function createAdminRoutes(db) {
       
     } catch (err) {
       console.error('Update offerings error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // ============================================
+  // PAYMENT OVERRIDE ROUTES
+  // ============================================
+
+  // Get user for payment override
+  router.get('/payment-override/user/:phone', (req, res) => {
+    try {
+      const user = db.prepare(`
+        SELECT id, phone, full_name, subscription_active, 
+               paid_until, emergency_active, emergency_active_until
+        FROM users 
+        WHERE phone = ?
+      `).get(req.params.phone);
+      
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      res.json(user);
+    } catch (err) {
+      console.error('Get user for override error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Apply payment override
+  router.post('/payment-override/apply', (req, res) => {
+    try {
+      const { userId, action, days, reason } = req.body;
+      
+      if (!userId || !action || !days || !reason) {
+        return res.status(400).json({ 
+          error: 'Missing required fields: userId, action, days, reason' 
+        });
+      }
+      
+      if (reason.trim().length < 10) {
+        return res.status(400).json({ 
+          error: 'Reason must be at least 10 characters' 
+        });
+      }
+      
+      const newDate = new Date();
+      newDate.setDate(newDate.getDate() + parseInt(days));
+      
+      if (action === 'login') {
+        db.prepare(`
+          UPDATE users 
+          SET subscription_active = 1,
+              paid_until = ?,
+              manually_activated = 1,
+              activation_reason = ?,
+              activated_by_admin_id = 1
+          WHERE id = ?
+        `).run(newDate.toISOString(), reason, userId);
+      } else if (action === 'emergency') {
+        db.prepare(`
+          UPDATE users 
+          SET emergency_active = 1,
+              emergency_active_until = ?,
+              manually_activated = 1,
+              activation_reason = ?,
+              activated_by_admin_id = 1
+          WHERE id = ?
+        `).run(newDate.toISOString(), reason, userId);
+      } else {
+        return res.status(400).json({ error: 'Invalid action. Use "login" or "emergency"' });
+      }
+      
+      // Log override
+      db.prepare(`
+        INSERT INTO payment_overrides 
+        (admin_id, user_id, action, days, reason, created_at)
+        VALUES (1, ?, ?, ?, ?, datetime('now'))
+      `).run(userId, action, days, reason);
+      
+      res.json({ success: true });
+      
+    } catch (err) {
+      console.error('Apply override error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Get override history
+  router.get('/payment-override/history', (req, res) => {
+    try {
+      const history = db.prepare(`
+        SELECT 
+          po.created_at,
+          u.phone,
+          po.action,
+          po.days,
+          po.reason,
+          'admin' as admin_username
+        FROM payment_overrides po
+        JOIN users u ON po.user_id = u.id
+        ORDER BY po.created_at DESC
+        LIMIT 50
+      `).all();
+      
+      res.json(history);
+    } catch (err) {
+      console.error('Get override history error:', err);
       res.status(500).json({ error: 'Server error' });
     }
   });

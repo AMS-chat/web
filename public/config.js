@@ -1,69 +1,96 @@
-// Version: 001.00001
+// Version: 001.00002
 // ============================================
 // 🌐 GLOBAL CONFIGURATION - WEB VERSION
 // ============================================
-// Промени само едно място и всичко се update-ва!
 
 // ============================================
 // 🪙 CRYPTO CONFIGURATION
 // ============================================
 const CRYPTO_CONFIG = {
-  // ⚠️ IMPORTANT: Change this to your actual KCY1 token address!
-  TOKEN_ADDRESS: '0xYOUR_KCY1_TOKEN_ADDRESS_HERE',
+  // Treasury wallets (where users send payments)
+  TREASURY_WALLETS: {
+    BTC: 'bc1q...your_btc_address',
+    ETH: '0x...your_eth_address',
+    BNB: '0x58ec63d31b8e4D6624B5c88338027a54Be1AE28A',
+    KCY_MEME: '0x58ec63d31b8e4D6624B5c88338027a54Be1AE28A',
+    KCY_AMS: '0x58ec63d31b8e4D6624B5c88338027a54Be1AE28A'
+  },
   
-  // Treasury wallet (receives payments)
-  TREASURY_WALLET: '0x58ec63d31b8e4D6624B5c88338027a54Be1AE28A',
+  // Token contract addresses (for BSC tokens)
+  TOKEN_ADDRESSES: {
+    KCY_MEME: '0xYOUR_KCY_MEME_TOKEN_CONTRACT',
+    KCY_AMS: '0xYOUR_KCY_AMS_TOKEN_CONTRACT'
+  },
   
-  // Payment amount (300 KCY tokens = 1 month)
-  PAYMENT_AMOUNT: '300',
+  // EXACT payment amounts (NO summing, NO partial payments)
+  PRICING: {
+    LOGIN: {
+      USD: 5,
+      EUR: 5,
+      BTC: 0.0001,
+      ETH: 0.002,
+      BNB: 0.01,
+      KCY_MEME: 1000,
+      KCY_AMS: 500
+    },
+    EMERGENCY: {
+      USD: 50,
+      EUR: 50,
+      BTC: 0.001,
+      ETH: 0.02,
+      BNB: 0.1,
+      KCY_MEME: 10000,
+      KCY_AMS: 5000
+    }
+  },
   
-  // Blockchain settings
+  // Blockchain explorers
+  EXPLORERS: {
+    BTC: 'https://blockchain.info',
+    ETH: 'https://api.etherscan.io/api',
+    BNB: 'https://api.bscscan.com/api'
+  },
+  
+  // API Keys
+  API_KEYS: {
+    ETHERSCAN: 'YOUR_FREE_API_KEY',
+    BSCSCAN: 'YOUR_FREE_API_KEY'
+  },
+  
+  // Network settings
   NETWORK: {
-    CHAIN_ID: '0x38', // BSC Mainnet
-    CHAIN_ID_DECIMAL: 56,
+    CHAIN_ID: '0x38',
     CHAIN_NAME: 'BSC Mainnet',
-    RPC_URL: 'https://bsc-dataseed.binance.org/',
-    EXPLORER_URL: 'https://bscscan.com/',
-    CURRENCY: {
-      NAME: 'BNB',
-      SYMBOL: 'BNB',
-      DECIMALS: 18
-    }
+    RPC_URL: 'https://bsc-dataseed.binance.org/'
   },
   
-  // Testnet settings (for development)
-  TESTNET: {
-    CHAIN_ID: '0x61', // BSC Testnet
-    CHAIN_ID_DECIMAL: 97,
-    CHAIN_NAME: 'BSC Testnet',
-    RPC_URL: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
-    EXPLORER_URL: 'https://testnet.bscscan.com/',
-    CURRENCY: {
-      NAME: 'tBNB',
-      SYMBOL: 'tBNB',
-      DECIMALS: 18
-    }
-  },
-  
-  // Use testnet in development (set to false for production)
-  USE_TESTNET: false,
+  // Payment rules
+  RULES: {
+    EXACT_AMOUNTS_ONLY: true,
+    NO_PARTIAL_PAYMENTS: true,
+    NO_REFUNDS_UNDER: 50,
+    SUBSCRIPTION_DAYS: 30,
+    PAYMENT_LOOKBACK_DAYS: 30
+  }
 };
 
-// Helper to get current network config
-const getCurrentNetwork = () => {
-  return CRYPTO_CONFIG.USE_TESTNET ? CRYPTO_CONFIG.TESTNET : CRYPTO_CONFIG.NETWORK;
+// ============================================
+// 📊 APP CONFIGURATION
+// ============================================
+const APP_CONFIG = {
+  MIN_AGE: 18,
+  MAX_FILE_SIZE: 52428800, // 50MB
+  FREE_MESSAGE_LIMIT: 10,
+  SESSION_HOURS: 24,
+  AUTO_LOGOUT_UTC: '04:00'
 };
 
-// Export for use in HTML files
+// Export
 if (typeof window !== 'undefined') {
   window.CRYPTO_CONFIG = CRYPTO_CONFIG;
-  window.getCurrentNetwork = getCurrentNetwork;
+  window.APP_CONFIG = APP_CONFIG;
 }
 
-// Export for use in Node.js (backend)
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    CRYPTO_CONFIG,
-    getCurrentNetwork,
-  };
+  module.exports = { CRYPTO_CONFIG, APP_CONFIG };
 }

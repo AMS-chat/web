@@ -1,7 +1,7 @@
--- Version: 001.00002
+-- Version: 001.00003
 -- AMS Chat Database Schema v4.3
 -- Shared between Web & Mobile App
--- Added: code_word, current_need, offerings, email, profile edit tracking
+-- Added: crypto wallets, subscription tracking, payment overrides, test mode support
 
 -- Users table - phone is NOT unique! phone + password_hash combination is unique
 CREATE TABLE IF NOT EXISTS users (
@@ -52,6 +52,31 @@ CREATE TABLE IF NOT EXISTS users (
   location_longitude REAL,
   location_ip TEXT,
   location_captured_at TEXT,
+  
+  -- Crypto wallet addresses
+  crypto_wallet_btc TEXT,
+  crypto_wallet_eth TEXT,
+  crypto_wallet_bnb TEXT,
+  crypto_wallet_kcy_meme TEXT,
+  crypto_wallet_kcy_ams TEXT,
+  
+  -- Subscription tracking
+  subscription_active INTEGER DEFAULT 0,
+  paid_until TEXT,
+  last_payment_check TEXT,
+  
+  -- Emergency button tracking
+  emergency_active INTEGER DEFAULT 0,
+  emergency_active_until TEXT,
+  
+  -- Manual activation (admin override)
+  manually_activated INTEGER DEFAULT 0,
+  activation_reason TEXT,
+  activated_by_admin_id INTEGER,
+  
+  -- Session tracking
+  session_expires_at TEXT,
+  
   UNIQUE(phone, password_hash)
 );
 
@@ -229,6 +254,19 @@ CREATE TABLE IF NOT EXISTS help_requests (
   charge_amount REAL,                      -- €50 or $50
   charge_currency TEXT,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Payment overrides table (admin manual activation)
+CREATE TABLE IF NOT EXISTS payment_overrides (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  admin_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  action TEXT NOT NULL,                    -- 'login' or 'emergency'
+  days INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (admin_id) REFERENCES admin_users(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 -- Indexes for new tables

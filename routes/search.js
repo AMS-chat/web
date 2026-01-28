@@ -1,4 +1,4 @@
-// Version: 001.00002
+// Version: 001.00003
 const express = require('express');
 
 // Haversine formula for calculating distance between two coordinates
@@ -16,6 +16,119 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 function createSearchRoutes(db) {
   const router = express.Router();
+
+  // ============================================
+  // FREE CHAT SEARCH (4 types)
+  // ============================================
+  router.post('/free', (req, res) => {
+    try {
+      const user = req.user;
+      
+      // Check if user is paid (paid users use advanced search)
+      if (user.subscription_active && 
+          user.paid_until && 
+          new Date(user.paid_until) > new Date()) {
+        return res.status(403).json({ 
+          error: 'Use advanced search endpoints for paid users' 
+        });
+      }
+
+      const { phone, fullName, city, age, codeWord } = req.body;
+      
+      // Type 1: EXACT SEARCH (all 5 fields required)
+      if (phone && fullName && city && age && codeWord) {
+        const result = db.prepare(`
+          SELECT id, phone, full_name, city, age, gender
+          FROM users
+          WHERE phone = ? 
+            AND full_name = ? 
+            AND city = ? 
+            AND age = ? 
+            AND code_word = ?
+            AND age >= 18
+            AND id != ?
+        `).get(phone, fullName, city, age, codeWord, user.id);
+        
+        return res.json({ 
+          type: 'exact', 
+          results: result ? [result] : [],
+          message: result ? 'User found' : 'No user found with these exact details'
+        });
+      }
+      
+      // Type 2: BY CITY (only city filled)
+      if (city && !phone && !fullName && !age && !codeWord) {
+        const results = db.prepare(`
+          SELECT id, phone, full_name, city, age, gender
+          FROM users
+          WHERE city = ? 
+            AND age >= 18
+            AND id != ?
+          ORDER BY RANDOM()
+          LIMIT 5
+        `).all(city, user.id);
+        
+        return res.json({ 
+          type: 'city', 
+          results,
+          message: `${results.length} random users from ${city}`
+        });
+      }
+      
+      // Type 3: BY AGE (only age filled)
+      if (age && !phone && !fullName && !city && !codeWord) {
+        if (age < 18) {
+          return res.status(400).json({ error: 'Minimum age is 18' });
+        }
+        
+        const results = db.prepare(`
+          SELECT id, phone, full_name, city, age, gender
+          FROM users
+          WHERE age = ? 
+            AND age >= 18
+            AND id != ?
+          ORDER BY RANDOM()
+          LIMIT 5
+        `).all(age, user.id);
+        
+        return res.json({ 
+          type: 'age', 
+          results,
+          message: `${results.length} random users age ${age}`
+        });
+      }
+      
+      // Type 4: RANDOM WORLDWIDE (nothing filled)
+      if (!phone && !fullName && !city && !age && !codeWord) {
+        const results = db.prepare(`
+          SELECT id, phone, full_name, city, age, gender
+          FROM users
+          WHERE age >= 18
+            AND id != ?
+          ORDER BY RANDOM()
+          LIMIT 5
+        `).all(user.id);
+        
+        return res.json({ 
+          type: 'random', 
+          results,
+          message: `${results.length} random users worldwide`
+        });
+      }
+      
+      // Invalid combination
+      return res.status(400).json({ 
+        error: 'Invalid search. Free users can search by: (1) All 5 fields, (2) City only, (3) Age only, (4) Nothing (random)'
+      });
+    } catch (err) {
+      console.error('Free search error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ============================================
+  // PAID SEARCH ROUTES
+  // ============================================
 
   // Search #2: By distance
   router.post('/by-distance', (req, res) => {
@@ -51,6 +164,7 @@ function createSearchRoutes(db) {
           AND paid_until > datetime('now')
           AND location_latitude IS NOT NULL
           AND location_longitude IS NOT NULL
+          AND age >= 18
       `;
       
       const params = [userId];
@@ -203,6 +317,7 @@ function createSearchRoutes(db) {
           AND paid_until > datetime('now')
           AND location_latitude IS NOT NULL
           AND location_longitude IS NOT NULL
+          AND age >= 18
           AND (${offeringsConditions.join(' OR ')})
       `;
       

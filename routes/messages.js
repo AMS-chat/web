@@ -1,4 +1,4 @@
-// Version: 001.00001
+// Version: 001.00002
 const express = require('express');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
@@ -12,7 +12,7 @@ function createMessagesRoutes(db, uploadDir) {
 
   const upload = multer({
     dest: uploadDir,
-    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
   });
 
   // Send location to friend
@@ -123,6 +123,29 @@ function createMessagesRoutes(db, uploadDir) {
         return res.status(400).json({ error: 'Message text required (max 5000 chars)' });
       }
 
+      // Check if user is free (unpaid)
+      const user = req.user;
+      if (!user.subscription_active || 
+          !user.paid_until || 
+          new Date(user.paid_until) <= new Date()) {
+        
+        // Free user - check daily message limit
+        const today = new Date().toISOString().split('T')[0];
+        const msgCount = db.prepare(`
+          SELECT COUNT(*) as count 
+          FROM messages 
+          WHERE from_user_id = ? 
+          AND DATE(created_at) = ?
+        `).get(user.id, today);
+        
+        if (msgCount.count >= 10) {
+          return res.status(403).json({ 
+            error: 'Daily message limit reached (10/day). Upgrade for unlimited messaging.',
+            upgradeRequired: true
+          });
+        }
+      }
+
       // Check friendship
       const [phone1, phone2] = [req.phone, to].sort();
       const friendCheck = db.prepare('SELECT 1 FROM friends WHERE phone1 = ? AND phone2 = ?').get(phone1, phone2);
@@ -166,6 +189,20 @@ function createMessagesRoutes(db, uploadDir) {
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Check if user is paid
+      const user = req.user;
+      if (!user.subscription_active || 
+          !user.paid_until || 
+          new Date(user.paid_until) <= new Date()) {
+        
+        // Free user - no file uploads
+        fs.unlinkSync(req.file.path);
+        return res.status(403).json({ 
+          error: 'File sharing not available. Upgrade for file sharing access.',
+          upgradeRequired: true
+        });
       }
 
       const { to } = req.body;

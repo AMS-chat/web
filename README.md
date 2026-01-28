@@ -24,6 +24,11 @@ Server starts at: http://localhost:3000
 
 Започни с: **[docs/README.md](./docs/README.md)**
 
+### 🆕 Version 00014 - Upgrade Guide:
+- ⚡ **[Quick Reference](./QUICK_REFERENCE.md)** - Fast setup guide
+- 📖 **[Full Upgrade Guide](./docs/UPGRADE_TO_00014.md)** - Complete migration instructions
+- 🧪 **[Testing Guide](./tests/TESTING.md)** - How to test new features
+
 ### Бързи линкове:
 - [Инсталация](./docs/01-INSTALLATION.md)
 - [База данни](./docs/02-DATABASE.md)

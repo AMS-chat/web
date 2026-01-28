@@ -1,4 +1,4 @@
-// Version: 001.00002
+// Version: 001.00003
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
@@ -25,8 +25,18 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// Test mode configuration
+const TEST_MODE = process.env.TEST_MODE === 'true';
+const DB_FILE = TEST_MODE ? (process.env.TEST_DB || 'amschat_test.db') : 'amschat.db';
+
+if (TEST_MODE) {
+  console.log('⚠️  TEST MODE ENABLED - Using database:', DB_FILE);
+  console.log('⚠️  All users have full access (no emergency button)');
+  console.log('⚠️  Payments are bypassed');
+}
+
 // SQLite Database
-const db = new Database('amschat.db');
+const db = new Database(DB_FILE);
 db.pragma('journal_mode = WAL');
 
 // Initialize database
@@ -80,6 +90,16 @@ const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5 });
 
 app.use('/api/', apiLimiter);
+
+// Test mode middleware - grants full access (no emergency)
+function testModeOverride(req, res, next) {
+  if (TEST_MODE && req.user) {
+    req.user.subscription_active = 1;
+    req.user.paid_until = '2099-12-31T00:00:00.000Z';
+    req.user.emergency_active = 0; // Always disabled in test mode
+  }
+  next();
+}
 
 // WebSocket clients map
 const clients = new Map();
@@ -225,11 +245,11 @@ app.use('/api/auth', authLimiter, createAuthRoutes(db));
 app.use('/api/payment', createPaymentRoutes(db));
 
 // Protected routes (require authentication)
-app.use('/api/friends', authenticate(db), createFriendsRoutes(db));
-app.use('/api/messages', authenticate(db), createMessagesRoutes(db, uploadDir));
-app.use('/api/profile', authenticate(db), createProfileRoutes(db));
-app.use('/api/help', authenticate(db), createHelpRoutes(db));
-app.use('/api/search', authenticate(db), createSearchRoutes(db));
+app.use('/api/friends', authenticate(db), testModeOverride, createFriendsRoutes(db));
+app.use('/api/messages', authenticate(db), testModeOverride, createMessagesRoutes(db, uploadDir));
+app.use('/api/profile', authenticate(db), testModeOverride, createProfileRoutes(db));
+app.use('/api/help', authenticate(db), testModeOverride, createHelpRoutes(db));
+app.use('/api/search', authenticate(db), testModeOverride, createSearchRoutes(db));
 
 // Admin routes (separate authentication)
 app.use('/api/admin', createAdminRoutes(db));
@@ -238,6 +258,30 @@ app.use('/api/admin', createAdminRoutes(db));
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
   res.status(500).json({ error: 'Internal server error' });
+});
+
+// ============================================
+// CRON JOBS
+// ============================================
+const cron = require('node-cron');
+
+// Auto logout all users at 04:00 UTC daily
+cron.schedule('0 4 * * *', () => {
+  console.log('🔒 Auto logout - 04:00 UTC');
+  
+  try {
+    // Delete all sessions
+    db.prepare('DELETE FROM sessions').run();
+    
+    // Clear session expires
+    db.prepare('UPDATE users SET session_expires_at = NULL').run();
+    
+    console.log('✅ All users logged out');
+  } catch (err) {
+    console.error('❌ Auto logout failed:', err);
+  }
+}, {
+  timezone: "UTC"
 });
 
 const PORT = process.env.PORT || 3000;
