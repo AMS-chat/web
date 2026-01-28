@@ -283,3 +283,46 @@ pm2 logs ams-chat
 pm2 logs ams-chat --lines 50
 # Или виж само ERROR лога
 tail -f /root/.pm2/logs/ams-chat-error.log
+
+
+
+-------------------------------
+
+# Виж PM2 процесите
+pm2 list
+
+# Виж какъв е startup
+pm2 startup
+
+
+# Спри всички процеси (ако има)
+pm2 kill
+
+# Изчисти startup
+pm2 unstartup systemd
+
+# Виж дали има systemd service
+systemctl status pm2-root
+systemctl status pm2-deploy
+
+-----------------------
+
+# Switch към ams-chat
+sudo -u ams-chat -s
+
+# Отиди в проекта
+cd /var/www/ams-chat-web
+
+# Стартирай
+pm2 start server.js --name ams-chat
+
+# Save
+pm2 save
+
+# Setup startup
+pm2 startup systemd
+# КОПИРАЙ командата която показва!
+
+# Exit
+exit
+
