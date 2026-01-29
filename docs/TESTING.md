@@ -1,15 +1,15 @@
-# 🧪 AMS Chat Testing Guide - Version 00013
+# 🧪 AMS Chat Testing Guide - Version 00018
 
 ## Quick Verification
 
 Run feature verification (checks all files exist):
 ```bash
-./verify-features.sh
+./scripts/verify-features.sh
 ```
 
 Expected output:
 ```
-✅ All features present! Version 00013 verified.
+✅ All features present! Version 00018 verified.
 ```
 
 ---
@@ -18,13 +18,128 @@ Expected output:
 
 Run all tests:
 ```bash
-./run-tests.sh
+./scripts/run-tests.sh
 ```
 
 Or manually:
 ```bash
 cd tests
 npm test
+```
+
+---
+
+## Test Files Available
+
+### 1. **Feature Verification** (`scripts/verify-features.sh`)
+Quick check that all required files and features exist.
+
+**Usage:**
+```bash
+cd /var/www/ams-chat-web
+./scripts/verify-features.sh
+```
+
+**Checks:**
+- Database schema files
+- Config files
+- Routes
+- Test mode
+- File upload limits
+- Age restrictions
+- Admin pages
+- Cron job
+- Migration files
+
+---
+
+### 2. **Full Test Suite** (`scripts/run-tests.sh`)
+Runs all automated tests using Mocha/Jest.
+
+**Usage:**
+```bash
+cd /var/www/ams-chat-web
+./scripts/run-tests.sh
+```
+
+**Or manually:**
+```bash
+cd tests
+npm install  # First time only
+npm test
+```
+
+---
+
+### 3. **Individual Test Files**
+
+#### A. **Crypto Features Test** (`tests/crypto-features.test.js`)
+Tests all crypto payment and free chat features.
+
+**Run individually:**
+```bash
+cd tests
+npm test crypto-features.test.js
+```
+
+**What it tests:**
+- Database schema (crypto wallets, subscriptions)
+- User registration (unpaid by default)
+- Crypto wallet storage
+- Subscription management (30 days)
+- Admin payment override
+- Age restrictions (18+)
+- Free chat search (4 types)
+- Message limits (10/day free, unlimited paid)
+- Configuration validation
+
+#### B. **Web Features Test** (`tests/web.test.js`)
+Tests web-specific features.
+
+**Run individually:**
+```bash
+cd tests
+npm test web.test.js
+```
+
+#### C. **v4.3 Features Test** (`tests/v4.3-features.test.js`)
+Tests version 4.3 specific features.
+
+**Run individually:**
+```bash
+cd tests
+npm test v4.3-features.test.js
+```
+
+---
+
+## Running All Tests (Complete)
+
+### Option 1: Automated Script
+```bash
+cd /var/www/ams-chat-web
+./scripts/run-tests.sh
+```
+
+### Option 2: Manual (Step by Step)
+```bash
+# 1. Install test dependencies
+cd /var/www/ams-chat-web/tests
+npm install
+
+# 2. Run all tests
+npm test
+
+# 3. Or run specific test
+npm test crypto-features.test.js
+npm test web.test.js
+npm test v4.3-features.test.js
+```
+
+### Option 3: Verify Features Only (Fast)
+```bash
+cd /var/www/ams-chat-web
+./scripts/verify-features.sh
 ```
 
 ---
