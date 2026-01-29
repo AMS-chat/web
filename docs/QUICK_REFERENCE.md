@@ -1,4 +1,4 @@
-# ⚡ Quick Reference - Version 00014
+# ⚡ Quick Reference - Version 00017
 
 ## 🚀 Quick Start
 
@@ -10,20 +10,22 @@ git pull
 npm install
 
 # 3. Migrate DB
-sqlite3 amschat.db < db_migration_crypto_payments.sql
+sqlite3 amschat.db < database/db_migration_crypto_payments.sql
 
 # 4. Update .env
+cp scripts/.env.example .env
 echo "TEST_MODE=false" >> .env
 echo "TEST_DB=amschat_test.db" >> .env
 
 # 5. Update config.js
+nano public/config.js
 # Fill: TREASURY_WALLETS, TOKEN_ADDRESSES, PRICING
 
 # 6. Restart
 pm2 restart ams-chat
 
 # 7. Verify
-./verify-features.sh
+./scripts/verify-features.sh
 ```
 
 ---
@@ -89,7 +91,7 @@ pm2 status              # Check status
 ## 🔍 Verify
 
 ```bash
-./verify-features.sh
+./scripts/verify-features.sh
 # Should show all ✅
 
 pm2 status
@@ -103,8 +105,8 @@ pm2 logs ams-chat | grep cron
 
 ## 📚 Full Docs
 
-See: `docs/UPGRADE_TO_00014.md`
+See: `UPGRADE_TO_00014.md` (same folder)
 
 ---
 
-**Version:** 00014 | **Date:** 2026-01-28
+**Version:** 00017 | **Date:** 2026-01-29

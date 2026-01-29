@@ -158,7 +158,7 @@ cd tests
 npm install
 ```
 
-### Грешка: "ENOENT: no such file or directory, open '../db_setup.sql'"
+### Грешка: "ENOENT: no such file or directory, open '../database/db_setup.sql'"
 Стартирай тестовете от `tests/` директорията, не от root:
 ```bash
 cd 2026-01-21-AMS-chat-app/tests

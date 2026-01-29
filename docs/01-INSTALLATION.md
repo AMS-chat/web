@@ -117,7 +117,7 @@ chmod 644 amschat.db
 
 ```bash
 # Копирай template
-cp .env.example .env
+cp scripts/.env.example .env
 
 # Редактирай
 nano .env

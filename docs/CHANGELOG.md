@@ -1,6 +1,137 @@
 # CHANGELOG - AMS Chat System
 
-## Version 001.00002 (January 2026) - Development
+## Version 00017 (January 29, 2026) - Clean File Structure
+
+### 🧹 FILE ORGANIZATION
+- **Created `/database` folder** - All SQL files moved here
+  - `db_setup.sql` - New installs
+  - `db_migration_crypto_payments.sql` - Existing DB migration
+  - `emergency_contacts_seed.sql` - Sample data
+
+- **Created `/scripts` folder** - All shell scripts moved here
+  - `deploy.sh` - Production deployment
+  - `dev.sh` - Development server
+  - `run-tests.sh` - Test runner
+  - `verify-features.sh` - Feature verification
+  - `.env.example` - Environment template
+
+- **Mobile app cleaned** - Removed ALL backend files
+  - Removed: `server.js`, `/routes`, `/middleware`, `/utils`
+  - Mobile app now contains ONLY React Native frontend
+  - Backend is in WEB project only
+
+### 📁 ROOT DIRECTORY NOW MINIMAL
+
+**Web Project Root:**
+```
+/
+├── README.md
+├── package.json
+├── server.js
+├── /database           ← NEW
+├── /scripts            ← NEW
+├── /public
+├── /routes
+├── /middleware
+├── /utils
+├── /docs
+└── /tests
+```
+
+**Mobile Project Root:**
+```
+/
+├── README.md
+├── package.json
+├── App.js
+├── index.js
+├── babel.config.js
+├── app.json
+├── eas.json
+├── /database           ← NEW (reference only)
+├── /scripts            ← NEW
+├── /src
+├── /docs
+└── /tests
+```
+
+### 📚 DOCUMENTATION UPDATED
+- `FILE_STRUCTURE.md` - Completely rewritten with new paths
+- `QUICK_REFERENCE.md` - Updated all commands with new paths
+- `UPGRADE_TO_00014.md` - Updated all database/script paths
+- All docs now reference correct file locations
+
+### ✅ NO FUNCTIONAL CHANGES
+- All features work exactly the same
+- Only file organization changed
+- Database schema unchanged
+- API routes unchanged
+
+---
+
+## Version 00016 (January 28, 2026) - Documentation Reorganization
+
+### 📚 DOCUMENTATION UPDATES
+- **Moved `QUICK_REFERENCE.md` to `/docs` folder** - All documentation now centralized
+- **Updated all internal documentation paths** - Removed `docs/` prefix from cross-references within docs folder
+- **Fixed README.md links** - Updated to point to correct documentation locations
+- **Added `FILE_STRUCTURE.md`** - Complete directory layout guide for both web and mobile
+- **Version bumped to 00016** across both projects
+
+### 🧹 FILE CLEANUP (Mobile App)
+- **Removed misplaced HTML files from mobile root:**
+  - `admin.html` (belongs in web/public only)
+  - `payment-override.html` (belongs in web/public only)
+  - `profile.html` (belongs in web/public only)
+  - `warning.html` (belongs in web/public only)
+- **Mobile app structure cleaned** - Only React Native and backend files remain
+
+### 🔧 FILE STRUCTURE
+```
+WEB PROJECT:
+/
+├── README.md
+├── /public/*.html          ← All HTML files here
+├── /docs/*.md              ← All documentation here
+└── server.js
+
+MOBILE PROJECT:
+/
+├── README.md
+├── /src                    ← React Native app
+├── /docs/*.md              ← All documentation here
+└── server.js               ← Backend (same as web)
+```
+
+### ✅ NO FUNCTIONAL CHANGES
+- All crypto payment features unchanged
+- All free/paid chat features unchanged  
+- All backend routes unchanged
+- Database schema unchanged
+
+---
+
+## Version 00015 (January 28, 2026) - Complete Documentation Package
+
+### 📚 COMPREHENSIVE DOCUMENTATION ADDED
+- **QUICK_REFERENCE.md** - One-page quick start guide
+- **docs/UPGRADE_TO_00014.md** - Full 700+ line upgrade guide with:
+  - PM2 explanation (what it is, why it's still needed)
+  - New technical requirements (only node-cron)
+  - Files to configure (config.js, .env)
+  - Step-by-step migration guide
+  - Troubleshooting section
+  - Before/After comparison tables
+- **tests/TESTING.md** - Complete testing documentation
+
+### 🧪 TESTING INFRASTRUCTURE
+- **crypto-features.test.js** - Full test suite (200+ lines)
+- **run-tests.sh** - Automated test runner
+- **verify-features.sh** - Quick feature verification script
+
+---
+
+## Version 00014 (January 28, 2026) - Crypto Payments & Free Chat
 
 ### 🆕 NEW FEATURES
 

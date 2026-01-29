@@ -11,7 +11,7 @@ case "$1" in
     
     "db:setup")
         echo "🗄️  Setting up database..."
-        sudo -u postgres psql -f db_setup.sql
+        sudo -u postgres psql -f database/db_setup.sql
         echo "✅ Database setup complete!"
         ;;
     
@@ -21,7 +21,7 @@ case "$1" in
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             sudo -u postgres psql -c "DROP DATABASE IF EXISTS amschat;"
-            sudo -u postgres psql -f db_setup.sql
+            sudo -u postgres psql -f database/db_setup.sql
             echo "✅ Database reset complete!"
         fi
         ;;

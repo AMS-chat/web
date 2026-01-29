@@ -81,3 +81,7 @@ ios/
 id_rsa*
 credentials.json
 service-account.json
+
+# Old files backup (temporary)
+/old
+old/

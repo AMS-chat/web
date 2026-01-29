@@ -27,7 +27,7 @@ ls -la *.db
 cd /var/www/ams-chat-web
 
 # Създай базата от SQL schema
-sqlite3 amschat.db < db_setup.sql
+sqlite3 amschat.db < database/db_setup.sql
 
 # Провери дали е създадена
 ls -la amschat.db
@@ -160,7 +160,7 @@ ls -la *.sql
 git pull origin main
 
 # Или upload ръчно от локален компютър
-scp db_setup.sql user@server:/var/www/ams-chat-web/
+scp database/db_setup.sql user@server:/var/www/ams-chat-web/
 scp emergency_contacts_seed.sql user@server:/var/www/ams-chat-web/
 ```
 
@@ -172,7 +172,7 @@ scp emergency_contacts_seed.sql user@server:/var/www/ams-chat-web/
 cd /var/www/ams-chat-web
 
 # Създай база
-sqlite3 amschat.db < db_setup.sql
+sqlite3 amschat.db < database/db_setup.sql
 
 # Seed data
 sqlite3 amschat.db < emergency_contacts_seed.sql

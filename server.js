@@ -40,7 +40,7 @@ const db = new Database(DB_FILE);
 db.pragma('journal_mode = WAL');
 
 // Initialize database
-const schema = fs.readFileSync('db_setup.sql', 'utf8');
+const schema = fs.readFileSync('database/db_setup.sql', 'utf8');
 db.exec(schema);
 
 // Load emergency contacts seed data (only if table is empty)

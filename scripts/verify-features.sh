@@ -10,9 +10,9 @@ ERRORS=0
 
 # Check database schema
 echo "📊 Checking database schema..."
-if grep -q "crypto_wallet_btc" db_setup.sql && \
-   grep -q "subscription_active" db_setup.sql && \
-   grep -q "payment_overrides" db_setup.sql; then
+if grep -q "crypto_wallet_btc" ../database/db_setup.sql && \
+   grep -q "subscription_active" ../database/db_setup.sql && \
+   grep -q "payment_overrides" ../database/db_setup.sql; then
     echo "  ✅ Database schema OK"
 else
     echo "  ❌ Database schema incomplete"
@@ -91,7 +91,7 @@ fi
 
 # Check migration
 echo "🔄 Checking migration SQL..."
-if [ -f "db_migration_crypto_payments.sql" ]; then
+if [ -f "../database/db_migration_crypto_payments.sql" ]; then
     echo "  ✅ Migration file exists"
 else
     echo "  ❌ Migration file missing"

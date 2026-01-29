@@ -132,7 +132,7 @@ chmod 600 chat.db
 ### **4. Configure .env**
 
 ```bash
-cp .env.example .env
+cp scripts/.env.example .env
 nano .env
 ```
 

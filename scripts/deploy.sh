@@ -49,7 +49,7 @@ remote_exec "cd $APP_DIR && npm install --production"
 
 # 5. Setup database
 echo "🗄️  Setting up database schema..."
-remote_exec "cd $APP_DIR && sudo -u postgres psql -d amschat -f db_setup.sql"
+remote_exec "cd $APP_DIR && sudo -u postgres psql -d amschat -f database/db_setup.sql"
 
 # 6. Check .env file
 echo "⚙️  Checking .env configuration..."

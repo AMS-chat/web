@@ -57,7 +57,7 @@ npm install node-cron
 
 ```bash
 cd /var/www/ams-chat-web
-sqlite3 amschat.db < db_migration_crypto_payments.sql
+sqlite3 amschat.db < database/db_migration_crypto_payments.sql
 ```
 
 **What it adds:**
@@ -358,7 +358,7 @@ git pull origin main
 npm install
 
 # 4. Migrate database
-sqlite3 amschat.db < db_migration_crypto_payments.sql
+sqlite3 amschat.db < database/db_migration_crypto_payments.sql
 
 # 5. Update .env
 nano .env
@@ -385,7 +385,7 @@ pm2 logs ams-chat --lines 50
 # "Cron job scheduled..."
 
 # 9. Test features
-./verify-features.sh
+./scripts/verify-features.sh
 
 # Should show all ✅
 ```
@@ -427,7 +427,7 @@ sqlite3 amschat.db ".tables" | grep payment_overrides
 # Should show: payment_overrides
 
 # Run feature verification
-./verify-features.sh
+./scripts/verify-features.sh
 
 # Should show all ✅ green checkmarks
 ```
@@ -492,7 +492,7 @@ Everything else stays:
 
 ```bash
 # 1. Feature verification
-./verify-features.sh
+./scripts/verify-features.sh
 # Expected: All ✅
 
 # 2. PM2 status
@@ -524,7 +524,7 @@ curl http://localhost:3000/payment-override.html
 # Expected: HTML response
 
 # 9. Full test suite (optional)
-./run-tests.sh
+./scripts/run-tests.sh
 # Expected: All tests pass
 ```
 
@@ -571,7 +571,7 @@ sqlite3 amschat.db "PRAGMA table_info(users);" | grep crypto_wallet
 **Fix:**
 ```bash
 # Run migration
-sqlite3 amschat.db < db_migration_crypto_payments.sql
+sqlite3 amschat.db < database/db_migration_crypto_payments.sql
 
 # Restart
 pm2 restart ams-chat
@@ -674,12 +674,12 @@ pm2 restart ams-chat
 
 ## 📚 Additional Documentation
 
-- **Installation:** `docs/01-INSTALLATION.md`
-- **Database:** `docs/02-DATABASE.md`
-- **Deployment:** `docs/09-DEPLOYMENT.md`
-- **Testing:** `tests/TESTING.md`
-- **API Reference:** `docs/11-API-REFERENCE.md`
-- **Troubleshooting:** `docs/10-TROUBLESHOOTING.md`
+- **Installation:** `01-INSTALLATION.md`
+- **Database:** `02-DATABASE.md`
+- **Deployment:** `09-DEPLOYMENT.md`
+- **Testing:** `../tests/TESTING.md`
+- **API Reference:** `11-API-REFERENCE.md`
+- **Troubleshooting:** `10-TROUBLESHOOTING.md`
 
 ---
 
@@ -688,7 +688,7 @@ pm2 restart ams-chat
 **Issues with upgrade?**
 
 1. Check logs: `pm2 logs ams-chat`
-2. Run verification: `./verify-features.sh`
+2. Run verification: `./scripts/verify-features.sh`
 3. Check this guide's troubleshooting section
 4. Restore backup if needed:
    ```bash
@@ -698,6 +698,6 @@ pm2 restart ams-chat
 
 ---
 
-**Version:** 00014  
-**Date:** 2026-01-28  
+**Version:** 00017  
+**Date:** 2026-01-29  
 **Status:** ✅ Production Ready
