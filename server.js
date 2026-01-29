@@ -27,7 +27,7 @@ const wss = new WebSocket.Server({ server });
 
 // Test mode configuration
 const TEST_MODE = process.env.TEST_MODE === 'true';
-const DB_FILE = TEST_MODE ? (process.env.TEST_DB || 'amschat_test.db') : 'amschat.db';
+const DB_FILE = TEST_MODE ? (process.env.TEST_DB || 'database/amschat_test.db') : 'database/amschat.db';
 
 if (TEST_MODE) {
   console.log('⚠️  TEST MODE ENABLED - Using database:', DB_FILE);

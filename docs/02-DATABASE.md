@@ -1,10 +1,10 @@
-# 📊 AMS Chat - Database Documentation v00018
+# 📊 AMS Chat - Database Documentation v00021
 
 ## 🗄️ Database Overview
 
 **Type:** SQLite 3  
-**Location:** `amschat.db` (root of project)  
-**Schema Version:** 00018 (with crypto payments)
+**Location:** `database/amschat.db` (inside /database folder)  
+**Schema Version:** 00021 (with crypto payments)
 
 ---
 
@@ -24,12 +24,12 @@ cd /var/www/ams-chat-web
 
 #### 2. Run setup script:
 ```bash
-sqlite3 amschat.db < database/db_setup.sql
+sqlite3 database/amschat.db < database/db_setup.sql
 ```
 
 #### 3. Verify:
 ```bash
-sqlite3 amschat.db ".tables"
+sqlite3 database/amschat.db ".tables"
 ```
 
 **Expected output:**
@@ -41,7 +41,7 @@ help_responses   reported_users   users
 
 #### 4. Seed sample data (optional):
 ```bash
-sqlite3 amschat.db < database/emergency_contacts_seed.sql
+sqlite3 database/amschat.db < database/emergency_contacts_seed.sql
 ```
 
 **Done!** Database is ready.
@@ -59,17 +59,17 @@ sqlite3 amschat.db < database/emergency_contacts_seed.sql
 
 #### 1. Backup (just in case):
 ```bash
-cp amschat.db amschat.db.backup.$(date +%Y%m%d_%H%M%S)
+cp database/amschat.db database/amschat.db.backup.$(date +%Y%m%d_%H%M%S)
 ```
 
 #### 2. Drop old database:
 ```bash
-rm amschat.db
+rm database/amschat.db
 ```
 
 #### 3. Create fresh:
 ```bash
-sqlite3 amschat.db < database/db_setup.sql
+sqlite3 database/amschat.db < database/db_setup.sql
 ```
 
 **Done!** Fresh database with new schema.
@@ -94,8 +94,11 @@ sqlite3 amschat.db < database/db_setup.sql
 ```bash
 cd /var/www/ams-chat-web
 
+# Create backups folder if not exists
+mkdir -p backups
+
 # Create backup with timestamp
-cp amschat.db backups/amschat.db.backup.$(date +%Y%m%d_%H%M%S)
+cp database/amschat.db backups/amschat.db.backup.$(date +%Y%m%d_%H%M%S)
 
 # Verify backup exists
 ls -lh backups/
@@ -107,7 +110,7 @@ ls -lh backups/
 
 #### Step 2: Check current schema:
 ```bash
-sqlite3 amschat.db "PRAGMA table_info(users);" | grep crypto_wallet
+sqlite3 database/amschat.db "PRAGMA table_info(users);" | grep crypto_wallet
 ```
 
 **If empty:** Need to migrate  
@@ -117,7 +120,7 @@ sqlite3 amschat.db "PRAGMA table_info(users);" | grep crypto_wallet
 
 #### Step 3: Run migration script:
 ```bash
-sqlite3 amschat.db < database/db_migration_crypto_payments.sql
+sqlite3 database/amschat.db < database/db_migration_crypto_payments.sql
 ```
 
 **What this does:**
@@ -135,7 +138,7 @@ sqlite3 amschat.db < database/db_migration_crypto_payments.sql
 #### Step 4: Verify migration:
 ```bash
 # Check new fields exist
-sqlite3 amschat.db "PRAGMA table_info(users);" | grep -E "crypto_wallet|subscription|emergency"
+sqlite3 database/amschat.db "PRAGMA table_info(users);" | grep -E "crypto_wallet|subscription|emergency"
 
 # Should show:
 # crypto_wallet_btc
@@ -154,13 +157,13 @@ sqlite3 amschat.db "PRAGMA table_info(users);" | grep -E "crypto_wallet|subscrip
 #### Step 5: Check data integrity:
 ```bash
 # Count users (should be same as before)
-sqlite3 amschat.db "SELECT COUNT(*) FROM users;"
+sqlite3 database/amschat.db "SELECT COUNT(*) FROM users;"
 
 # Count messages (should be same as before)
-sqlite3 amschat.db "SELECT COUNT(*) FROM messages;"
+sqlite3 database/amschat.db "SELECT COUNT(*) FROM messages;"
 
 # Check new fields have defaults
-sqlite3 amschat.db "SELECT crypto_wallet_btc, subscription_active FROM users LIMIT 5;"
+sqlite3 database/amschat.db "SELECT crypto_wallet_btc, subscription_active FROM users LIMIT 5;"
 ```
 
 ---
@@ -183,7 +186,7 @@ pm2 logs ams-chat
 pm2 stop ams-chat
 
 # Restore backup
-cp backups/amschat.db.backup.YYYYMMDD_HHMMSS amschat.db
+cp backups/amschat.db.backup.YYYYMMDD_HHMMSS database/amschat.db
 
 # Restart
 pm2 start ams-chat
@@ -298,31 +301,31 @@ CREATE TABLE payment_overrides (
 
 ### Check database size:
 ```bash
-ls -lh amschat.db
+ls -lh database/amschat.db
 ```
 
 ### Vacuum database (optimize):
 ```bash
-sqlite3 amschat.db "VACUUM;"
+sqlite3 database/amschat.db "VACUUM;"
 ```
 
 ### Backup database:
 ```bash
 # Manual backup
-cp amschat.db backups/amschat.db.$(date +%Y%m%d_%H%M%S)
+cp database/amschat.db backups/amschat.db.$(date +%Y%m%d_%H%M%S)
 
 # Or use SQLite backup command
-sqlite3 amschat.db ".backup backups/amschat.db.$(date +%Y%m%d_%H%M%S)"
+sqlite3 database/amschat.db ".backup backups/amschat.db.$(date +%Y%m%d_%H%M%S)"
 ```
 
 ### View table structure:
 ```bash
-sqlite3 amschat.db ".schema users"
+sqlite3 database/amschat.db ".schema users"
 ```
 
 ### Count records:
 ```bash
-sqlite3 amschat.db "SELECT 
+sqlite3 database/amschat.db "SELECT 
   (SELECT COUNT(*) FROM users) as users,
   (SELECT COUNT(*) FROM messages) as messages,
   (SELECT COUNT(*) FROM sessions) as sessions;"
@@ -367,7 +370,7 @@ pm2 start ams-chat
 
 ### Export data to SQL:
 ```bash
-sqlite3 amschat.db .dump > amschat_dump.sql
+sqlite3 database/amschat.db .dump > amschat_dump.sql
 ```
 
 ### Import from SQL dump:
@@ -377,7 +380,7 @@ sqlite3 amschat_new.db < amschat_dump.sql
 
 ### Copy database to another server:
 ```bash
-scp amschat.db user@other-server:/var/www/ams-chat-web/
+scp database/amschat.db user@other-server:/var/www/ams-chat-web/
 ```
 
 ---
@@ -386,14 +389,14 @@ scp amschat.db user@other-server:/var/www/ams-chat-web/
 
 ```
 /var/www/ams-chat-web/
-├── amschat.db                              ← Main database
 ├── /database
+│   ├── amschat.db                          ← Main database (HERE!)
 │   ├── db_setup.sql                        ← Fresh install schema
 │   ├── db_migration_crypto_payments.sql    ← Migration script
 │   └── emergency_contacts_seed.sql         ← Sample data
 └── /backups                                ← Create this folder!
-    ├── amschat.db.backup.20260129_120000
-    └── amschat.db.backup.20260129_150000
+    ├── amschat.db.backup.20260130_120000
+    └── amschat.db.backup.20260130_150000
 ```
 
 **Create backups folder:**
@@ -434,6 +437,7 @@ mkdir -p /var/www/ams-chat-web/backups
 
 ---
 
-**Version:** 00018  
-**Last Updated:** 2026-01-29  
-**Schema Version:** v4.3 + Crypto Payments
+**Version:** 00021  
+**Last Updated:** 2026-01-30  
+**Schema Version:** v4.3 + Crypto Payments  
+**Database Location:** `/database/amschat.db`

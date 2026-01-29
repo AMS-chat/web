@@ -57,7 +57,7 @@ npm install node-cron
 
 ```bash
 cd /var/www/ams-chat-web
-sqlite3 amschat.db < database/db_migration_crypto_payments.sql
+sqlite3 database/amschat.db < database/db_migration_crypto_payments.sql
 ```
 
 **What it adds:**
@@ -347,7 +347,7 @@ ADMIN_ALLOWED_IPS=127.0.0.1,::1,your.actual.ip.address
 ```bash
 # 1. Backup everything
 cd /var/www/ams-chat-web
-cp amschat.db amschat.db.backup.$(date +%Y%m%d_%H%M%S)
+cp database/amschat.db amschat.db.backup.$(date +%Y%m%d_%H%M%S)
 cp .env .env.backup
 cp public/config.js public/config.js.backup
 
@@ -358,7 +358,7 @@ git pull origin main
 npm install
 
 # 4. Migrate database
-sqlite3 amschat.db < database/db_migration_crypto_payments.sql
+sqlite3 database/amschat.db < database/db_migration_crypto_payments.sql
 
 # 5. Update .env
 nano .env
@@ -401,7 +401,7 @@ pm2 logs ams-chat --lines 50
 echo "TEST_MODE=true" >> .env
 
 # 8. Create test database
-cp amschat.db amschat_test.db
+cp database/amschat.db amschat_test.db
 
 # 9. Restart
 pm2 restart ams-chat
@@ -417,12 +417,12 @@ pm2 restart ams-chat
 
 ```bash
 # Check database schema
-sqlite3 amschat.db "PRAGMA table_info(users);" | grep crypto_wallet
+sqlite3 database/amschat.db "PRAGMA table_info(users);" | grep crypto_wallet
 
 # Should show 5 crypto_wallet fields
 
 # Check payment_overrides table exists
-sqlite3 amschat.db ".tables" | grep payment_overrides
+sqlite3 database/amschat.db ".tables" | grep payment_overrides
 
 # Should show: payment_overrides
 
@@ -508,7 +508,7 @@ pm2 logs ams-chat | grep cron
 # Expected: "Cron job scheduled for 04:00 UTC"
 
 # 5. Database migration
-sqlite3 amschat.db "PRAGMA table_info(users);" | grep crypto
+sqlite3 database/amschat.db "PRAGMA table_info(users);" | grep crypto
 # Expected: 5 crypto_wallet fields shown
 
 # 6. Test mode check (should be false in production)
@@ -563,7 +563,7 @@ npm list node-cron
 
 **Check:**
 ```bash
-sqlite3 amschat.db "PRAGMA table_info(users);" | grep crypto_wallet
+sqlite3 database/amschat.db "PRAGMA table_info(users);" | grep crypto_wallet
 ```
 
 **Expected:** 5 fields shown
@@ -571,7 +571,7 @@ sqlite3 amschat.db "PRAGMA table_info(users);" | grep crypto_wallet
 **Fix:**
 ```bash
 # Run migration
-sqlite3 amschat.db < database/db_migration_crypto_payments.sql
+sqlite3 database/amschat.db < database/db_migration_crypto_payments.sql
 
 # Restart
 pm2 restart ams-chat
@@ -692,7 +692,7 @@ pm2 restart ams-chat
 3. Check this guide's troubleshooting section
 4. Restore backup if needed:
    ```bash
-   cp amschat.db.backup.YYYYMMDD amschat.db
+   cp database/amschat.db.backup.YYYYMMDD amschat.db
    pm2 restart ams-chat
    ```
 

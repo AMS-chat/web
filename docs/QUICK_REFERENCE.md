@@ -10,7 +10,7 @@ git pull
 npm install
 
 # 3. Migrate DB
-sqlite3 amschat.db < database/db_migration_crypto_payments.sql
+sqlite3 database/amschat.db < database/db_migration_crypto_payments.sql
 
 # 4. Update .env
 cp scripts/.env.example .env

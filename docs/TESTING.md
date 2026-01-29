@@ -301,10 +301,10 @@ BNB: 0xtest456...
 ### Tests Fail
 ```bash
 # Check database schema
-sqlite3 amschat.db ".schema users"
+sqlite3 database/amschat.db ".schema users"
 
 # Check if migration ran
-sqlite3 amschat.db "SELECT * FROM payment_overrides LIMIT 1"
+sqlite3 database/amschat.db "SELECT * FROM payment_overrides LIMIT 1"
 ```
 
 ### Feature Not Working

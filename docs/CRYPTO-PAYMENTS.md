@@ -384,7 +384,7 @@ ls -la public/payment.html
 ### Check received payments:
 ```bash
 # View users who paid
-sqlite3 amschat.db "SELECT phone, paid_until, payment_currency FROM users WHERE subscription_active = 1;"
+sqlite3 database/amschat.db "SELECT phone, paid_until, payment_currency FROM users WHERE subscription_active = 1;"
 ```
 
 ### Monitor wallet balances:

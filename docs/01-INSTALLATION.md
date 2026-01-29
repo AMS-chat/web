@@ -75,13 +75,13 @@ npm install --production
 
 ```bash
 # Създай базата данни
-sqlite3 amschat.db < db_setup.sql
+sqlite3 database/amschat.db < db_setup.sql
 
 # Seed emergency contacts
-sqlite3 amschat.db < emergency_contacts_seed.sql
+sqlite3 database/amschat.db < emergency_contacts_seed.sql
 
 # Провери таблиците
-sqlite3 amschat.db "SELECT name FROM sqlite_master WHERE type='table';"
+sqlite3 database/amschat.db "SELECT name FROM sqlite_master WHERE type='table';"
 ```
 
 **Очакван резултат:**
@@ -102,7 +102,7 @@ help_requests
 
 **Провери emergency contacts:**
 ```bash
-sqlite3 amschat.db "SELECT COUNT(*) FROM emergency_contacts;"
+sqlite3 database/amschat.db "SELECT COUNT(*) FROM emergency_contacts;"
 # Трябва да покаже ~74 записа
 ```
 

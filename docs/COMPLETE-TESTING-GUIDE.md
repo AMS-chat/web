@@ -352,7 +352,7 @@ pm2 logs ams-chat
 Ако тестовете фейлват:
 1. Провери `/docs/10-TROUBLESHOOTING.md`
 2. Провери PM2 logs: `pm2 logs ams-chat`
-3. Провери database: `sqlite3 amschat.db ".tables"`
+3. Провери database: `sqlite3 database/amschat.db ".tables"`
 
 ---
 

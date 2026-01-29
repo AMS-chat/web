@@ -98,10 +98,10 @@ nano public/config.js
 ### **3. Database**
 ```bash
 # New install:
-sqlite3 amschat.db < database/db_setup.sql
+sqlite3 database/amschat.db < database/db_setup.sql
 
 # Existing DB:
-sqlite3 amschat.db < database/db_migration_crypto_payments.sql
+sqlite3 database/amschat.db < database/db_migration_crypto_payments.sql
 ```
 
 ---
@@ -118,7 +118,7 @@ nano .env
 nano public/config.js
 
 # 3. Database
-sqlite3 amschat.db < database/db_setup.sql
+sqlite3 database/amschat.db < database/db_setup.sql
 
 # 4. Run
 npm start
