@@ -88,7 +88,89 @@ sqlite3 database/amschat.db < database/db_setup.sql
 
 ---
 
-### Migration Process:
+### 🚀 AUTOMATED Migration (RECOMMENDED):
+
+We have a script that does EVERYTHING automatically!
+
+#### Run the automated script:
+```bash
+cd /var/www/ams-chat-web
+./scripts/migrate-database.sh
+```
+
+**What it does automatically:**
+1. ✅ Checks database exists
+2. ✅ Counts records BEFORE (users, messages, sessions)
+3. ✅ Creates timestamped backup
+4. ✅ Verifies backup integrity
+5. ✅ Asks for confirmation
+6. ✅ Runs migration
+7. ✅ Counts records AFTER
+8. ✅ **COMPARES BEFORE vs AFTER automatically!**
+9. ✅ Verifies new schema
+10. ✅ Shows clear success/failure
+
+**Example output:**
+```
+================================================
+  AMS Chat Database Migration Tool v00021
+================================================
+
+✅ Database found: database/amschat.db
+✅ Migration script found: database/db_migration_crypto_payments.sql
+✅ Backup directory ready: backups
+
+ℹ️  Counting records BEFORE migration...
+   Users:    1250
+   Messages: 45678
+   Sessions: 89
+
+ℹ️  Creating backup...
+✅ Backup created: backups/amschat.db.backup.20260130_120000 (15M)
+
+ℹ️  Verifying backup integrity...
+✅ Backup verified successfully
+
+⚠️  Ready to migrate database
+ℹ️  Backup: backups/amschat.db.backup.20260130_120000
+Continue with migration? (yes/no): yes
+
+ℹ️  Running migration script...
+✅ Migration completed
+
+ℹ️  Counting records AFTER migration...
+   Users:    1250
+   Messages: 45678
+   Sessions: 89
+
+ℹ️  Comparing BEFORE vs AFTER...
+✅ Users: 1250 = 1250
+✅ Messages: 45678 = 45678
+✅ Sessions: 89 = 89
+
+ℹ️  Verifying new schema...
+✅ Crypto wallet fields present
+✅ payment_overrides table present
+
+================================================
+✅ MIGRATION SUCCESSFUL!
+
+ℹ️  Next steps:
+   1. Restart server: pm2 restart ams-chat
+   2. Check logs: pm2 logs ams-chat
+   3. Test features: ./scripts/verify-features.sh
+
+ℹ️  Backup saved at: backups/amschat.db.backup.20260130_120000
+================================================
+```
+
+**NO MANUAL COUNTING! Script does everything!** 🎉
+
+---
+
+### 📝 MANUAL Migration (Advanced):
+
+If you prefer manual control:
 
 #### Step 1: Backup First! (MANDATORY)
 ```bash
@@ -118,52 +200,41 @@ sqlite3 database/amschat.db "PRAGMA table_info(users);" | grep crypto_wallet
 
 ---
 
-#### Step 3: Run migration script:
+#### Step 3: Count BEFORE migration (for comparison):
+```bash
+# Save counts to variables
+USERS_BEFORE=$(sqlite3 database/amschat.db "SELECT COUNT(*) FROM users;")
+MESSAGES_BEFORE=$(sqlite3 database/amschat.db "SELECT COUNT(*) FROM messages;")
+
+echo "Users before: $USERS_BEFORE"
+echo "Messages before: $MESSAGES_BEFORE"
+```
+
+---
+
+#### Step 4: Run migration script:
 ```bash
 sqlite3 database/amschat.db < database/db_migration_crypto_payments.sql
 ```
 
-**What this does:**
-- ✅ Adds crypto wallet fields (5 currencies)
-- ✅ Adds subscription fields
-- ✅ Adds emergency fields
-- ✅ Creates payment_overrides table
-- ✅ Adds manual activation fields
-- ✅ Adds session expiry field
-- ❌ Does NOT delete any existing data
-- ❌ Does NOT modify chat messages
-
 ---
 
-#### Step 4: Verify migration:
+#### Step 5: Count AFTER migration and compare:
 ```bash
-# Check new fields exist
-sqlite3 database/amschat.db "PRAGMA table_info(users);" | grep -E "crypto_wallet|subscription|emergency"
+# Count after
+USERS_AFTER=$(sqlite3 database/amschat.db "SELECT COUNT(*) FROM users;")
+MESSAGES_AFTER=$(sqlite3 database/amschat.db "SELECT COUNT(*) FROM messages;")
 
-# Should show:
-# crypto_wallet_btc
-# crypto_wallet_eth
-# crypto_wallet_bnb
-# crypto_wallet_kcy_meme
-# crypto_wallet_kcy_ams
-# subscription_active
-# paid_until
-# emergency_active
-# ...
-```
+# Compare (script does this for you!)
+echo "Users: $USERS_BEFORE → $USERS_AFTER"
+echo "Messages: $MESSAGES_BEFORE → $MESSAGES_AFTER"
 
----
-
-#### Step 5: Check data integrity:
-```bash
-# Count users (should be same as before)
-sqlite3 database/amschat.db "SELECT COUNT(*) FROM users;"
-
-# Count messages (should be same as before)
-sqlite3 database/amschat.db "SELECT COUNT(*) FROM messages;"
-
-# Check new fields have defaults
-sqlite3 database/amschat.db "SELECT crypto_wallet_btc, subscription_active FROM users LIMIT 5;"
+# Check if equal
+if [ "$USERS_BEFORE" = "$USERS_AFTER" ]; then
+  echo "✅ User count OK"
+else
+  echo "❌ User count CHANGED!"
+fi
 ```
 
 ---
