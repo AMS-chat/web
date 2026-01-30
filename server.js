@@ -84,6 +84,7 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.static('public'));
+app.use('/assets', express.static('assets'));
 
 // Rate limiting
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });

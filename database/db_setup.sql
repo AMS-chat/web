@@ -77,6 +77,14 @@ CREATE TABLE IF NOT EXISTS users (
   -- Session tracking
   session_expires_at TEXT,
   
+  -- Signals system fields
+  is_static_object INTEGER DEFAULT 0,          -- 1 = created from approved signal (location locked)
+  created_from_signal_id INTEGER,              -- Reference to signal that created this object
+  profile_photo_url TEXT,                      -- Profile photo (or object photo for static objects)
+  working_hours TEXT CHECK(length(working_hours) <= 50),  -- Working hours (50 chars max)
+  last_signal_date TEXT,                       -- Last date user submitted a signal
+  free_days_earned INTEGER DEFAULT 0,          -- Count of free days earned from approved signals
+  
   UNIQUE(phone, password_hash)
 );
 
@@ -282,6 +290,33 @@ CREATE INDEX IF NOT EXISTS idx_friends_user1 ON friends(user_id1);
 CREATE INDEX IF NOT EXISTS idx_friends_user2 ON friends(user_id2);
 CREATE INDEX IF NOT EXISTS idx_flagged_conv_reviewed ON flagged_conversations(reviewed);
 CREATE INDEX IF NOT EXISTS idx_critical_words_word ON critical_words(word);
+
+-- Signals system indexes
+CREATE INDEX IF NOT EXISTS idx_users_static_object ON users(is_static_object);
+CREATE INDEX IF NOT EXISTS idx_signals_status ON signals(status);
+CREATE INDEX IF NOT EXISTS idx_signals_user ON signals(user_id);
+CREATE INDEX IF NOT EXISTS idx_signals_created_user ON signals(created_user_id);
+
+-- Signals table
+CREATE TABLE IF NOT EXISTS signals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  signal_type TEXT NOT NULL,
+  title TEXT NOT NULL CHECK(length(title) <= 100),
+  working_hours TEXT CHECK(length(working_hours) <= 50),
+  latitude REAL NOT NULL,
+  longitude REAL NOT NULL,
+  photo_url TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+  submitted_at TEXT DEFAULT (datetime('now')),
+  processed_at TEXT,
+  processed_by_admin_id INTEGER,
+  created_user_id INTEGER,
+  rejection_reason TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (processed_by_admin_id) REFERENCES users(id),
+  FOREIGN KEY (created_user_id) REFERENCES users(id) ON DELETE SET NULL
+);
 
 -- Insert default admin (password: admin123 - CHANGE THIS!)
 INSERT OR IGNORE INTO admin_users (username, password_hash) 

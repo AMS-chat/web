@@ -90,9 +90,13 @@ router.post('/submit', requireAuth, upload.single('photo'), async (req, res) => 
   try {
     const { signal_type, title, working_hours, latitude, longitude } = req.body;
     
-    // Validation
+    // Validation - ALL fields are required except working_hours
     if (!signal_type || !title || !latitude || !longitude) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: 'Missing required fields: signal_type, title, location' });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'Photo is required. Please upload a photo of the object/location.' });
     }
     
     if (title.length > 100) {

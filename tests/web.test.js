@@ -67,12 +67,12 @@ describe('AMS Chat Web App - Test Suite', () => {
       assert(fs.existsSync(configPath), 'Missing config.js');
     });
 
-    it('should validate PWA files exist', () => {
+    it('should validate PWA files exist in /assets', () => {
       const pwaFiles = [
-        path.join(__dirname, '../public/manifest.json'),
-        path.join(__dirname, '../public/sw.js'),
-        path.join(__dirname, '../public/icon-192.png'),
-        path.join(__dirname, '../public/icon-512.png')
+        path.join(__dirname, '../assets/manifest.json'),
+        path.join(__dirname, '../assets/sw.js'),
+        path.join(__dirname, '../assets/icon-192.png'),
+        path.join(__dirname, '../assets/icon-512.png')
       ];
       
       pwaFiles.forEach(file => {
