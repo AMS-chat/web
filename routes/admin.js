@@ -1086,6 +1086,100 @@ function createAdminRoutes(db) {
     }
   });
 
+  // Get all users (for static objects management)
+  router.get('/users', async (req, res) => {
+    try {
+      const users = db.prepare(`
+        SELECT id, phone, full_name, offerings, working_hours,
+               latitude, longitude, is_static_object, profile_photo_url,
+               created_from_signal_id, created_at
+        FROM users
+        ORDER BY is_static_object DESC, id DESC
+      `).all();
+      
+      res.json({ users });
+    } catch (err) {
+      console.error('Get users error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Update user (admin can update everything)
+  router.put('/users/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { phone, password, full_name, offerings, working_hours, latitude, longitude } = req.body;
+      
+      const updateFields = [];
+      const values = [];
+      
+      if (phone !== undefined) {
+        updateFields.push('phone = ?');
+        values.push(phone);
+      }
+      
+      if (password) {
+        const bcrypt = require('bcryptjs');
+        const hash = bcrypt.hashSync(password, 10);
+        updateFields.push('password_hash = ?');
+        values.push(hash);
+      }
+      
+      if (full_name !== undefined) {
+        updateFields.push('full_name = ?');
+        values.push(full_name);
+      }
+      
+      if (offerings !== undefined) {
+        updateFields.push('offerings = ?');
+        values.push(offerings);
+      }
+      
+      if (working_hours !== undefined) {
+        updateFields.push('working_hours = ?');
+        values.push(working_hours);
+      }
+      
+      if (latitude !== undefined) {
+        updateFields.push('latitude = ?');
+        values.push(latitude);
+      }
+      
+      if (longitude !== undefined) {
+        updateFields.push('longitude = ?');
+        values.push(longitude);
+      }
+      
+      if (updateFields.length === 0) {
+        return res.status(400).json({ error: 'No fields to update' });
+      }
+      
+      values.push(userId);
+      
+      const sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+      db.prepare(sql).run(...values);
+      
+      res.json({ success: true, message: 'User updated' });
+    } catch (err) {
+      console.error('Update user error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Delete user
+  router.delete('/users/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+      
+      res.json({ success: true, message: 'User deleted' });
+    } catch (err) {
+      console.error('Delete user error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
   return router;
 }
 

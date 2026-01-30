@@ -51,13 +51,34 @@ function createProfileRoutes(db) {
   router.put('/', (req, res) => {
     try {
       const userId = req.user.id;
-      const { full_name, phone, birth_date, city } = req.body;
+      const { full_name, phone, birth_date, city, location_latitude, location_longitude, profile_photo_url, working_hours } = req.body;
       
       // Get current user data
       const user = db.prepare(`
-        SELECT profile_edits_this_month, profile_edit_reset_date 
+        SELECT profile_edits_this_month, profile_edit_reset_date, is_static_object
         FROM users WHERE id = ?
       `).get(userId);
+      
+      // Static objects have restrictions - can only edit working_hours
+      if (user.is_static_object) {
+        if (working_hours !== undefined) {
+          // Only allow working hours update for static objects
+          db.prepare(`
+            UPDATE users 
+            SET working_hours = ?
+            WHERE id = ?
+          `).run(working_hours, userId);
+          
+          return res.json({ 
+            success: true,
+            message: 'Working hours updated'
+          });
+        } else {
+          return res.status(403).json({ 
+            error: 'Static objects can only update working hours. Contact admin to change other fields.' 
+          });
+        }
+      }
       
       // Check if edit counter needs to be reset (monthly)
       const now = new Date();
@@ -89,7 +110,7 @@ function createProfileRoutes(db) {
         });
       }
       
-      // Update profile
+      // Update profile (normal users)
       db.prepare(`
         UPDATE users 
         SET 

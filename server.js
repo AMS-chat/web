@@ -250,6 +250,7 @@ app.use('/api/messages', authenticate(db), testModeOverride, createMessagesRoute
 app.use('/api/profile', authenticate(db), testModeOverride, createProfileRoutes(db));
 app.use('/api/help', authenticate(db), testModeOverride, createHelpRoutes(db));
 app.use('/api/search', authenticate(db), testModeOverride, createSearchRoutes(db));
+app.use('/api/signals', require('./routes/signals'));  // Signals route (handles auth internally)
 
 // Admin routes (separate authentication)
 app.use('/api/admin', createAdminRoutes(db));

@@ -303,21 +303,21 @@ function createSearchRoutes(db) {
         offeringsParams.push(service, service + ',%', '%,' + service + '%');
       });
       
-      // Build query - find users who OFFER what I NEED
+      // Build query - find users who OFFER what I NEED (includes static objects)
       let query = `
         SELECT 
           id, full_name, phone, email, gender, birth_date, height_cm, weight_kg,
           city, country, current_need, offerings, is_verified,
           location_latitude, location_longitude,
-          hide_phone, hide_names
+          hide_phone, hide_names, is_static_object, profile_photo_url, working_hours
         FROM users
         WHERE 
           id != ? 
           AND is_blocked = 0
-          AND paid_until > datetime('now')
+          AND (paid_until > datetime('now') OR is_static_object = 1)
           AND location_latitude IS NOT NULL
           AND location_longitude IS NOT NULL
-          AND age >= 18
+          AND (age >= 18 OR is_static_object = 1)
           AND (${offeringsConditions.join(' OR ')})
       `;
       

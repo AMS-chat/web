@@ -123,6 +123,38 @@ const SERVICE_CATEGORIES = {
       'Hi Class Food',
       'Karaoke'
     ]
+  },
+  
+  PLACES: {
+    label: 'Places/Stores',
+    subcategories: [
+      'Pharmacy',
+      'Optician/Eyewear',
+      'Computer Repair',
+      'Computer Store',
+      'Shopping Center/Market',
+      'Building Materials Store',
+      'Construction Exchange',
+      'Beauty/Hair Salon',
+      'Massage',
+      'Sauna',
+      'Swimming Pool',
+      'Gym',
+      'Clothing Store',
+      'Gift Shop',
+      'Flower Shop',
+      'GSM Repair',
+      'Appliance Repair',
+      'Appliance Store'
+    ]
+  },
+  
+  INCIDENTS: {
+    label: 'Incidents',
+    subcategories: [
+      'Accident',
+      'Person Needing Help'
+    ]
   }
 };
 
@@ -145,7 +177,9 @@ const OFFERING_ONLY_SERVICES = [
 // Services that can ONLY be used as NEEDS (not as offerings)
 const NEED_ONLY_SERVICES = [
   'Sick',
-  'Help'
+  'Help',
+  'Accident',
+  'Person Needing Help'
 ];
 
 // Emergency need to offering mapping
