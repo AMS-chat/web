@@ -6,14 +6,40 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 
-const WEB_ROOT = path.join(__dirname, '..');
-const MOBILE_ROOT = path.join(__dirname, '../../2026-01-21-AMS-chat-app');
+// Detect if we're running in web or mobile project
+const CURRENT_ROOT = path.join(__dirname, '..');
+const projectJsonPath = path.join(CURRENT_ROOT, 'package.json');
+let isWebProject = false;
+let isMobileProject = false;
+
+if (fs.existsSync(projectJsonPath)) {
+  const packageJson = JSON.parse(fs.readFileSync(projectJsonPath, 'utf8'));
+  isWebProject = packageJson.name?.includes('web') || fs.existsSync(path.join(CURRENT_ROOT, 'server.js'));
+  isMobileProject = packageJson.name?.includes('app') || fs.existsSync(path.join(CURRENT_ROOT, 'App.js'));
+}
+
+const WEB_ROOT = isWebProject ? CURRENT_ROOT : path.join(CURRENT_ROOT, '../2026-01-21-AMS-chat-web');
+const MOBILE_ROOT = isMobileProject ? CURRENT_ROOT : path.join(CURRENT_ROOT, '../2026-01-21-AMS-chat-app');
 
 describe('📁 Project Structure Validation', () => {
+  
+  before(() => {
+    console.log(`\n   🔍 Running in: ${isWebProject ? 'WEB' : isMobileProject ? 'MOBILE' : 'UNKNOWN'} project`);
+    console.log(`   📂 WEB_ROOT: ${WEB_ROOT}`);
+    console.log(`   📱 MOBILE_ROOT: ${MOBILE_ROOT}\n`);
+  });
   
   // ==================== WEB PROJECT TESTS ====================
   
   describe('🌐 Web Project Structure', () => {
+    
+    before(function() {
+      // Skip web tests if we're in mobile project
+      if (isMobileProject && !fs.existsSync(WEB_ROOT)) {
+        console.log('   ⚠️  Web project not found, skipping web tests');
+        this.skip();
+      }
+    });
     
     it('1. MUST have version file in format 00XXX.version', () => {
       const files = fs.readdirSync(WEB_ROOT);
