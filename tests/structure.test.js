@@ -58,6 +58,7 @@ describe('📁 Project Structure Validation', () => {
     it('3. MUST have required folders', () => {
       const required = [
         'assets',
+        'configs',
         'database', 
         'docs',
         'middleware',
@@ -102,6 +103,16 @@ describe('📁 Project Structure Validation', () => {
         `Missing assets: ${missing.join(', ')}`);
       
       console.log(`   ✅ Assets folder complete`);
+    });
+    
+    it('4.1. /configs MUST contain .env.example', () => {
+      const configsPath = path.join(WEB_ROOT, 'configs');
+      const envExample = path.join(configsPath, '.env.example');
+      
+      assert(fs.existsSync(envExample), 
+        'Missing configs/.env.example file!');
+      
+      console.log(`   ✅ Config folder has .env.example`);
     });
     
     it('5. /public MUST NOT contain icons or manifest', () => {

@@ -429,4 +429,77 @@ router.post('/admin/obsolete/:signalId', requireAuth, (req, res) => {
   }
 });
 
+// Get nearby signals (for duplicate checking)
+router.get('/nearby', requireAuth, (req, res) => {
+  try {
+    const { latitude, longitude, radius = 100, limit = 5 } = req.query;
+    
+    if (!latitude || !longitude) {
+      return res.status(400).json({ error: 'Missing latitude or longitude' });
+    }
+    
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    const radiusMeters = parseFloat(radius);
+    const limitNum = parseInt(limit);
+    
+    // Get all pending signals AND static objects
+    const signals = db.prepare(`
+      SELECT 
+        s.id, s.signal_type, s.title, s.working_hours, s.latitude, s.longitude, 
+        s.photo_url, s.submitted_at, s.status
+      FROM signals s
+      WHERE s.status IN ('pending', 'approved')
+        AND s.submitted_at > datetime('now', '-7 days')
+      
+      UNION ALL
+      
+      SELECT 
+        u.id, u.offerings as signal_type, u.full_name as title, u.working_hours,
+        u.location_latitude as latitude, u.location_longitude as longitude,
+        u.profile_photo_url as photo_url, u.created_at as submitted_at, 'static_object' as status
+      FROM users u
+      WHERE u.is_static_object = 1
+        AND u.location_latitude IS NOT NULL
+        AND u.location_longitude IS NOT NULL
+    `).all();
+    
+    // Calculate distances using Haversine formula
+    const nearbyObjects = signals.map(obj => {
+      const R = 6371000; // Earth radius in meters
+      const lat1 = lat * Math.PI / 180;
+      const lat2 = obj.latitude * Math.PI / 180;
+      const deltaLat = (obj.latitude - lat) * Math.PI / 180;
+      const deltaLng = (obj.longitude - lng) * Math.PI / 180;
+      
+      const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                Math.cos(lat1) * Math.cos(lat2) *
+                Math.sin(deltaLng/2) * Math.sin(deltaLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const distance = R * c;
+      
+      return {
+        id: obj.id,
+        type: obj.signal_type,
+        title: obj.title,
+        workingHours: obj.working_hours || '',
+        latitude: obj.latitude,
+        longitude: obj.longitude,
+        photoUrl: obj.photo_url,
+        distance: Math.round(distance),
+        status: obj.status
+      };
+    })
+    .filter(o => o.distance <= radiusMeters)
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, limitNum);
+    
+    res.json({ objects: nearbyObjects });
+    
+  } catch (error) {
+    console.error('Error fetching nearby signals:', error);
+    res.status(500).json({ error: 'Failed to fetch nearby signals' });
+  }
+});
+
 module.exports = router;

@@ -8,7 +8,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config();
+require('dotenv').config({ path: './configs/.env' });
 
 const { authenticate } = require('./middleware/auth');
 const { checkCriticalWords } = require('./middleware/monitoring');

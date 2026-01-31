@@ -2,6 +2,9 @@
 .env
 .env.local
 .env.production
+configs/.env
+configs/.env.local
+configs/.env.production
 
 # Version tracking files (INCLUDE in Git)
 # *.version files are tracked

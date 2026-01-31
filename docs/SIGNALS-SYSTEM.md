@@ -124,20 +124,67 @@ const isFormValid = signalType && title.trim() && photo && location;
 
 ## 🚀 User Flow
 
-### Step 1: Check Eligibility
+### Step 1: Navigate to Signal Screen
+**Web:** Click "Сигнализирай" button  
+**Mobile:** Navigate to SignalScreen
+
+### Step 2: Auto-Location Capture
+**Automatic on page load:**
+- GPS location is captured immediately
+- Coordinates displayed: `42.697700, 23.321900`
+- Location button shows: ✅ Локацията е заснета
+
+### Step 3: Nearby Objects Check (Auto)
+**After location capture, system checks for nearby objects:**
+```
+GET /api/signals/nearby?latitude=X&longitude=Y&radius=100&limit=5
+Response: {
+  objects: [
+    {
+      id, type, title, workingHours,
+      latitude, longitude, photoUrl, distance
+    }
+  ]
+}
+```
+
+**If nearby objects found (within 100m):**
+
+**MOBILE:**
+1. Shows **WARNING MODAL** first with:
+   - ⚠️ Full warning text about duplicate submissions
+   - Links to search tools:
+     - 📍 Търсене по разстояние
+     - 🔎 Търсене по нужда
+   - "Затвори" button
+2. After closing modal, shows **list of 5 nearby objects**:
+   - Photo (or 📍 placeholder)
+   - Title: "Аптека Чочо"
+   - Type: "Pharmacy"
+   - Working hours: "Денонощно"
+   - Coordinates: `42.697700, 23.321900`
+   - Distance: `54м`
+
+**WEB:**
+- Shows **warning box** with 5 nearby objects (same format)
+- Red warning section with full text
+- Blue section with links to search pages
+
+### Step 4: Fill Remaining Fields
+- Select signal type (dropdown)
+- Enter title (max 100 chars)
+- Enter working hours (optional, max 50 chars)
+- Take/upload photo (REQUIRED)
+
+### Step 5: Check Eligibility
 ```
 GET /api/signals/can-submit
 Response: { canSubmit: true/false, message: "..." }
 ```
+- Can submit only 1 signal per day
+- If already submitted today → form disabled
 
-### Step 2: Fill Form
-- Select signal type
-- Enter title (max 100 chars)
-- Enter working hours (optional, max 50 chars)
-- Take/upload photo (REQUIRED)
-- Capture GPS location (REQUIRED)
-
-### Step 3: Submit
+### Step 6: Submit
 ```
 POST /api/signals/submit
 Body: FormData {
@@ -151,14 +198,91 @@ Body: FormData {
 Response: { success: true, signalId: 123 }
 ```
 
-### Step 4: Wait for Admin Review
+### Step 7: Wait for Admin Review
 - Signal status: 'pending'
 - User sees in "My Signals" history
 
-### Step 5: Get Notification (if approved)
+### Step 8: Get Notification (if approved)
 - +1 free day added to account
 - Static object created in database
 - Appears in search results
+
+---
+
+## 🔍 Nearby Objects Detection
+
+### Purpose
+Prevent duplicate submissions by showing users existing objects near their location.
+
+### API Endpoint
+```
+GET /api/signals/nearby?latitude=X&longitude=Y&radius=100&limit=5
+Authorization: Bearer <token>
+
+Response: {
+  objects: [
+    {
+      id: 123,
+      type: "Pharmacy",
+      title: "Аптека Чочо",
+      workingHours: "Денонощно",
+      latitude: 42.697700,
+      longitude: 23.321900,
+      photoUrl: "/uploads/signals/photo.jpg",
+      distance: 54,  // meters
+      status: "pending" | "approved" | "static_object"
+    }
+  ]
+}
+```
+
+### Search Criteria
+- **Radius:** 100 meters (default)
+- **Limit:** 5 objects (default)
+- **Sources:** 
+  - Pending signals (last 7 days)
+  - Approved signals (last 7 days)
+  - Static objects (all)
+
+### Distance Calculation
+Uses **Haversine formula** for accurate distance:
+```javascript
+const R = 6371000; // Earth radius in meters
+const lat1 = userLat * Math.PI / 180;
+const lat2 = objectLat * Math.PI / 180;
+const deltaLat = (objectLat - userLat) * Math.PI / 180;
+const deltaLng = (objectLng - userLng) * Math.PI / 180;
+
+const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+          Math.cos(lat1) * Math.cos(lat2) *
+          Math.sin(deltaLng/2) * Math.sin(deltaLng/2);
+const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+const distance = R * c; // meters
+```
+
+### Warning Display
+
+**Mobile (Modal):**
+1. Modal appears automatically after location capture
+2. Shows full warning text
+3. Lists 5 nearby objects with photos
+4. Provides links to search tools
+5. "Затвори" button to dismiss
+
+**Web (Inline Warning):**
+1. Warning box appears above form
+2. Shows 5 nearby objects with photos
+3. Red warning section with penalties
+4. Blue section with search links
+
+### Duplicate Penalty
+⛔ **Submitting duplicate object = -1 day subscription**
+
+Admin can reject as duplicate:
+```
+POST /api/signals/admin/reject/:id
+Body: { reason: "Duplicate - already exists" }
+```
 
 ---
 

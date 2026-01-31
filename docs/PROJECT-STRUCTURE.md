@@ -27,6 +27,10 @@
 │   ├── manifest.json
 │   └── sw.js
 │
+├── /configs                ← Configuration files
+│   ├── .env.example        ← Environment template (copy to .env)
+│   └── .env                ← Environment variables (CREATE THIS, gitignored)
+│
 ├── /database               ← SQL files ONLY
 │   ├── db_setup.sql                        ← Full schema (for new installs)
 │   ├── db_migration_crypto_payments.sql    ← Crypto payments migration
@@ -116,6 +120,10 @@
 │   ├── icon-512.png        ← Same as web
 │   ├── manifest.json       ← Same as web
 │   └── sw.js               ← Same as web
+│
+├── /configs                ← Configuration files
+│   ├── .env.example        ← Environment template (copy to .env)
+│   └── .env                ← Environment variables (CREATE THIS, gitignored)
 │
 ├── /docs                   ← Documentation (same as web)
 │   ├── README.md
