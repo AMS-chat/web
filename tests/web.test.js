@@ -21,7 +21,7 @@ describe('AMS Chat Web App - Test Suite', () => {
     db = new Database(TEST_DB);
     
     // Load schema
-    const schema = fs.readFileSync(path.join(__dirname, '../db_setup.sql'), 'utf8');
+    const schema = fs.readFileSync(path.join(__dirname, '../database/db_setup.sql'), 'utf8');
     db.exec(schema);
   });
 

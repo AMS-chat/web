@@ -320,10 +320,10 @@ CREATE INDEX IF NOT EXISTS idx_signals_user ON signals(user_id);
 CREATE INDEX IF NOT EXISTS idx_signals_created_user ON signals(created_user_id);
 
 -- Insert default admin (password: admin123 - CHANGE THIS!)
-INSERT OR IGNORE INTO admin_users (username, password_hash) 
+#INSERT OR IGNORE INTO admin_users (username, password_hash) 
 VALUES ('admin', '$2b$10$rBV2kHaW7RvJhWxGg0KhJeqGJ0Y9mYvH7K8KZxBqWqP4qOa8Jz0Ny');
 
 -- Insert some default critical words
-INSERT OR IGNORE INTO critical_words (word) VALUES 
+#INSERT OR IGNORE INTO critical_words (word) VALUES 
 ('drugs'), ('weapon'), ('illegal'), ('bomb'), ('terror'),
 ('kill'), ('murder'), ('kidnap'), ('ransom'), ('threat');

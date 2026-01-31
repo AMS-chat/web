@@ -1,4 +1,42 @@
-# 🚨 Signals System - Complete Guide
+## 🗄️ Database Setup
+
+### SQLite Database
+The project uses SQLite for data storage. SQLite is a file-based database - no separate server needed!
+
+**Database Files:**
+- `database/amschat.db` - Main production database (gitignored)
+- `database/amschat_empty.db` - Empty template with all tables
+- `database/db_setup.sql` - Schema definition
+
+### Initial Setup
+
+**Option 1: Use Empty Template (Recommended)**
+```bash
+cp database/amschat_empty.db database/amschat.db
+```
+
+**Option 2: Create from Schema**
+```bash
+node database/create_empty_db.js
+cp database/amschat_empty.db database/amschat.db
+```
+
+**Option 3: Auto-create (server will create on first run)**
+```bash
+node server.js
+# Database created automatically at database/amschat.db
+```
+
+### Important Notes
+- SQLite = single file database (no MySQL-style scripts needed!)
+- Database auto-creates tables on first server start
+- Tests create temporary `:memory:` databases
+- Never commit `amschat.db` to git (gitignored)
+- Empty template `amschat_empty.db` is ready to deploy
+
+---
+
+## 🚨 Signals System - Complete Guide
 
 ## Overview
 

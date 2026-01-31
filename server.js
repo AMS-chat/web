@@ -2,7 +2,6 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
-const Database = require('better-sqlite3');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -25,9 +24,48 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Test mode configuration
-const TEST_MODE = process.env.TEST_MODE === 'true';
-const DB_FILE = TEST_MODE ? (process.env.TEST_DB || 'database/amschat_test.db') : 'database/amschat.db';
+// Database configuration with automatic fallback
+const { initializeDatabase, getDatabaseType, checkDatabaseHealth, fallbackToSQLite } = require('./utils/database');
+
+let db;
+
+// Initialize database with fallback logic
+async function setupDatabase() {
+  try {
+    db = await initializeDatabase();
+    const health = await checkDatabaseHealth();
+    
+    if (!health.healthy) {
+      console.error(`❌ ${health.type.toUpperCase()} health check failed:`, health.error);
+      
+      if (health.type === 'postgresql') {
+        console.log('🔄 Attempting fallback to SQLite...');
+        db = await fallbackToSQLite();
+      } else {
+        throw new Error('SQLite health check failed - cannot start server');
+      }
+    }
+    
+    console.log(`✅ Database ready: ${getDatabaseType().toUpperCase()}`);
+    return db;
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+    
+    if (getDatabaseType() === 'postgresql') {
+      console.log('🔄 Falling back to SQLite...');
+      try {
+        db = await fallbackToSQLite();
+        console.log('✅ Fallback successful - using SQLite');
+        return db;
+      } catch (fallbackError) {
+        console.error('❌ Fallback to SQLite also failed:', fallbackError);
+        process.exit(1);
+      }
+    } else {
+      process.exit(1);
+    }
+  }
+}
 
 if (TEST_MODE) {
   console.log('⚠️  TEST MODE ENABLED - Using database:', DB_FILE);
@@ -35,22 +73,7 @@ if (TEST_MODE) {
   console.log('⚠️  Payments are bypassed');
 }
 
-// SQLite Database
-const db = new Database(DB_FILE);
-db.pragma('journal_mode = WAL');
-
-// Initialize database
-const schema = fs.readFileSync('database/db_setup.sql', 'utf8');
-db.exec(schema);
-
-// Load emergency contacts seed data (only if table is empty)
-const contactsCount = db.prepare('SELECT COUNT(*) as count FROM emergency_contacts').get();
-if (contactsCount.count === 0) {
-  console.log('📞 Loading emergency contacts seed data...');
-  const seedData = fs.readFileSync('emergency_contacts_seed.sql', 'utf8');
-  db.exec(seedData);
-  console.log('✅ Emergency contacts loaded');
-}
+// Database will be initialized in setupDatabase() function above
 
 // File upload directory
 const uploadDir = path.join(__dirname, 'uploads');
@@ -288,13 +311,43 @@ cron.schedule('0 4 * * *', () => {
 
 const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, () => {
-  console.log(`
+// Start server with database initialization
+(async () => {
+  try {
+    // Initialize database first
+    await setupDatabase();
+    
+    // Load emergency contacts seed data (only if table is empty)
+    if (getDatabaseType() === 'sqlite') {
+      const contactsCount = db.prepare('SELECT COUNT(*) as count FROM emergency_contacts').get();
+      if (contactsCount.count === 0) {
+        console.log('📞 Loading emergency contacts seed data...');
+        const seedData = fs.readFileSync('database/emergency_contacts_seed.sql', 'utf8');
+        db.exec(seedData);
+        console.log('✅ Emergency contacts loaded');
+      }
+    } else {
+      // PostgreSQL
+      const result = await db.prepare('SELECT COUNT(*) as count FROM emergency_contacts').get();
+      if (result.count === 0) {
+        console.log('📞 Loading emergency contacts seed data...');
+        const seedData = fs.readFileSync('database/emergency_contacts_seed.sql', 'utf8');
+        await db.exec(seedData);
+        console.log('✅ Emergency contacts loaded');
+      }
+    }
+    
+    // Start server
+    server.listen(PORT, () => {
+      const dbType = getDatabaseType().toUpperCase();
+      const dbInfo = dbType === 'SQLITE' ? 'SQLite (amschat.db)' : `PostgreSQL (${process.env.PG_DATABASE || 'amschat'})`;
+      
+      console.log(`
 ╔════════════════════════════════════════╗
 ║     🚀 AMS Chat Server v4.3            ║
 ╠════════════════════════════════════════╣
 ║  Port: ${PORT.toString().padEnd(31)}  ║
-║  Database: SQLite (amschat.db)         ║
+║  Database: ${dbInfo.padEnd(27)}  ║
 ║  Features:                             ║
 ║    ✓ Password authentication           ║
 ║    ✓ Custom contact names              ║
@@ -307,14 +360,24 @@ server.listen(PORT, () => {
 ║    ✓ Search by need (max 50km)         ║
 ║    ✓ Service verification system       ║
 ║    ✓ 20+ countries emergency contacts  ║
+║    ✓ Dual DB: SQLite ⇄ PostgreSQL      ║
 ╚════════════════════════════════════════╝
-  `);
-});
+      `);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+})();
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('⚠️  SIGTERM received, shutting down...');
-  server.close(() => {
-    db.close();
+  server.close(async () => {
+    if (getDatabaseType() === 'sqlite') {
+      db.close();
+    } else {
+      await db.close();
+    }
     console.log('✅ Server closed');
     process.exit(0);
   });

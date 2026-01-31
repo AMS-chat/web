@@ -1,7 +1,7 @@
 # 📁 AMS Chat - Project Structure (Web + Mobile)
 
-**Version:** 00026  
-**Last Updated:** 2026-01-30  
+**Version:** 00030  
+**Last Updated:** 2026-01-31  
 **Purpose:** Single source of truth for both Web and Mobile project structure
 
 ---
@@ -11,11 +11,10 @@
 ### Root Files:
 ```
 /
-├── 00026.version           ← Version marker (NEVER rename!)
+├── 00030.version           ← Version marker (NEVER rename!)
 ├── .gitignore              ← Git ignore rules
 ├── package.json            ← Node dependencies
 ├── server.js               ← Main Express server
-├── .env                    ← Environment variables (CREATE from .env.example, gitignored)
 ```
 
 ### Folders:
@@ -31,8 +30,11 @@
 │   ├── .env.example        ← Environment template (copy to .env)
 │   └── .env                ← Environment variables (CREATE THIS, gitignored)
 │
-├── /database               ← SQL files ONLY
-│   ├── db_setup.sql                        ← Full schema (for new installs)
+├── /database               ← SQL files + SQLite databases
+│   ├── db_setup.sql                        ← Full schema definition
+│   ├── amschat_empty.db                    ← Empty DB template (all tables, no data)
+│   ├── amschat.db                          ← Production database (gitignored, auto-created)
+│   ├── create_empty_db.js                  ← Script to generate empty DB
 │   ├── db_migration_crypto_payments.sql    ← Crypto payments migration
 │   ├── db_migration_signals.sql            ← Signals system migration
 │   └── emergency_contacts_seed.sql         ← Emergency contacts data
@@ -251,6 +253,54 @@ app.use('/assets', express.static('assets')); // Serves icons, manifest, sw.js
 - `ios/` build folder (mobile)
 - `.git/` folder
 - `.env` (secrets)
+
+---
+
+## 🗄️ SQLite DATABASE:
+
+### How SQLite Works:
+- SQLite = single file database (`amschat.db`)
+- No separate database server needed!
+- Database auto-creates on first server start
+- Tests use in-memory databases (`:memory:`)
+
+### Database Files:
+```
+/database/
+├── amschat.db              ← Production database (gitignored, auto-created)
+├── amschat_empty.db        ← Empty template (ready to deploy)
+├── db_setup.sql            ← Schema definition
+└── create_empty_db.js      ← Generate empty DB script
+```
+
+### Setup Options:
+
+**Option 1: Use Empty Template (Fast)**
+```bash
+cp database/amschat_empty.db database/amschat.db
+node server.js
+```
+
+**Option 2: Auto-create (Server creates it)**
+```bash
+node server.js
+# Database auto-created at database/amschat.db
+```
+
+**Option 3: Generate Fresh Template**
+```bash
+node database/create_empty_db.js
+cp database/amschat_empty.db database/amschat.db
+```
+
+### Why SQLite?
+- ✅ Single file database - easy backup
+- ✅ No separate server needed
+- ✅ Auto-creates on first run
+- ✅ Perfect for < 100K users
+- ✅ Can migrate to PostgreSQL later
+
+**For production with millions of users, see:** [DATABASE.md](DATABASE.md)
 
 ---
 
