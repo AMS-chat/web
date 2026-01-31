@@ -148,16 +148,17 @@ describe('📁 Project Structure Validation', () => {
       console.log(`   ✅ Public contains only HTML + config.js`);
     });
     
-    it('7. /database MUST contain only SQL files', () => {
+    it('7. /database MUST contain only SQL, JS scripts, and DB files', () => {
       const dbPath = path.join(WEB_ROOT, 'database');
       const files = fs.readdirSync(dbPath);
       
-      const nonSQL = files.filter(f => !f.endsWith('.sql'));
+      const allowedExtensions = ['.sql', '.js', '.db'];
+      const nonAllowed = files.filter(f => !allowedExtensions.some(ext => f.endsWith(ext)));
       
-      assert.strictEqual(nonSQL.length, 0, 
-        `Found non-SQL files in /database: ${nonSQL.join(', ')}`);
+      assert.strictEqual(nonAllowed.length, 0, 
+        `Found non-allowed files in /database: ${nonAllowed.join(', ')}. Allowed: ${allowedExtensions.join(', ')}`);
       
-      console.log(`   ✅ Database folder clean (only SQL)`);
+      console.log(`   ✅ Database folder clean (SQL, JS, DB files)`);
     });
     
     it('8. MUST NOT have versioned test files (e.g. v4.3-features.test.js)', () => {

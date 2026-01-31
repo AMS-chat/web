@@ -409,7 +409,7 @@ describe('🧪 AMS Chat - Version 00013 Tests', () => {
   
   describe('⚙️ Configuration', () => {
     it('should have valid crypto config', () => {
-      const config = require('./public/config.js');
+      const config = require('../public/config.js');
       
       assert(config.CRYPTO_CONFIG, 'CRYPTO_CONFIG should exist');
       assert(config.CRYPTO_CONFIG.TREASURY_WALLETS, 'TREASURY_WALLETS should exist');
@@ -428,7 +428,7 @@ describe('🧪 AMS Chat - Version 00013 Tests', () => {
     });
 
     it('should have valid app config', () => {
-      const config = require('./public/config.js');
+      const config = require('../public/config.js');
       
       assert(config.APP_CONFIG, 'APP_CONFIG should exist');
       assert.strictEqual(config.APP_CONFIG.MIN_AGE, 18);
