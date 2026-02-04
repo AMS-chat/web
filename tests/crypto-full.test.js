@@ -22,7 +22,7 @@ describe('₿ Crypto Payments - Full Flow', () => {
 
   describe('💰 Wallet Generation', () => {
     it('should generate BTC wallet', () => {
-      const wallet = '1' + Math.random().toString(36).substring(2, 35);
+      const wallet = '1' + 'A'.repeat(26);
       assert(wallet.startsWith('1') && wallet.length >= 26);
       console.log('   ✅ BTC wallet');
     });

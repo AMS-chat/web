@@ -72,7 +72,7 @@ describe('🔗 Integration Tests - E2E Workflows', () => {
     });
 
     it('should mark message as read', () => {
-      db.prepare("UPDATE messages SET read_at = datetime('now') WHERE id = 1");
+      db.prepare("UPDATE messages SET read_at = datetime('now') WHERE id = 1").run();
       const msg = db.prepare('SELECT read_at FROM messages WHERE id = 1').get();
       assert(msg.read_at);
       console.log('   ✅ Message read');
@@ -138,7 +138,7 @@ describe('🔗 Integration Tests - E2E Workflows', () => {
     });
 
     it('should submit signal', () => {
-      const id = db.prepare(`INSERT INTO signals (user_id, photo_path, latitude, longitude, status) VALUES (?, ?, ?, ?, ?)`).run(1, '/uploads/signal.jpg', 42.6977, 23.3219, 'pending').lastInsertRowid;
+      const id = db.prepare(`INSERT INTO signals (user_id, photo_url, latitude, longitude, status, signal_type, title) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(1, '/uploads/signal.jpg', 42.6977, 23.3219, 'pending', 'person', 'Test Signal').lastInsertRowid;
       assert(id);
       console.log('   ✅ Signal submitted');
     });
@@ -173,7 +173,7 @@ describe('🔗 Integration Tests - E2E Workflows', () => {
 
   describe('🆘 Emergency Flow', () => {
     it('should trigger help button', () => {
-      const id = db.prepare(`INSERT INTO help_requests (user_id, phone, full_name) VALUES (?, ?, ?)`).run(1, '+359888111111', 'John Doe').lastInsertRowid;
+      const id = db.prepare(`INSERT INTO help_requests (user_id, phone, full_name, latitude, longitude) VALUES (?, ?, ?, ?, ?)`).run(1, '+359888111111', 'John Doe', 42.6977, 23.3219).lastInsertRowid;
       assert(id);
       console.log('   ✅ Help button triggered');
     });

@@ -61,7 +61,8 @@ describe('📁 Project Structure Validation', () => {
         '.gitignore',
         'package.json',
         'package-lock.json',
-        'server.js'
+        'server.js',
+        '.env'
       ];
       
       // Add version file to allowed

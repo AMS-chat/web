@@ -14,7 +14,13 @@ describe('👨‍💼 Admin Panel - Full Workflow', () => {
     db = new Database(TEST_DB);
     const schema = fs.readFileSync(path.join(__dirname, '../database/db_setup.sql'), 'utf8');
     db.exec(schema);
-    db.prepare(`INSERT INTO admin_users (username, password_hash) VALUES (?, ?)`).run('admin', 'hash');
+    
+    // Check if admin exists before inserting
+    const existingAdmin = db.prepare('SELECT * FROM admin_users WHERE username = ?').get('admin');
+    if (!existingAdmin) {
+      db.prepare(`INSERT INTO admin_users (username, password_hash) VALUES (?, ?)`).run('admin', 'hash');
+    }
+    
     db.prepare(`INSERT INTO users (phone, password_hash, full_name, gender, age) VALUES (?, ?, ?, ?, ?)`).run('+359888111111', 'hash', 'User 1', 'male', 25);
     db.prepare(`INSERT INTO users (phone, password_hash, full_name, gender, age) VALUES (?, ?, ?, ?, ?)`).run('+359888222222', 'hash', 'User 2', 'female', 28);
     console.log('✅ Admin test DB created');

@@ -25,27 +25,28 @@ describe('👥 Friends & Sessions Tests', () => {
       assert(tables.length === 1); console.log('   ✅ friends table exists');
     });
     it('should add friend', () => {
-      const id = db.prepare(`INSERT INTO friends (user_id, friend_id, status) VALUES (?, ?, ?)`).run(1, 2, 'pending').lastInsertRowid;
-      assert(id); console.log('   ✅ Friend request sent');
+      const id = db.prepare(`INSERT INTO friends (user_id1, user_id2) VALUES (?, ?)`).run(1, 2).lastInsertRowid;
+      assert(id); console.log('   ✅ Friend added');
     });
     it('should accept friend request', () => {
-      db.prepare('UPDATE friends SET status = ? WHERE user_id = ? AND friend_id = ?').run('accepted', 1, 2);
-      const friend = db.prepare('SELECT status FROM friends WHERE user_id = ? AND friend_id = ?').get(1, 2);
-      assert.strictEqual(friend.status, 'accepted'); console.log('   ✅ Friend accepted');
+      // Friends table has no status column - friendship exists or doesn't
+      const friend = db.prepare('SELECT * FROM friends WHERE user_id1 = ? AND user_id2 = ?').get(1, 2);
+      assert(friend); console.log('   ✅ Friend exists');
     });
     it('should reject friend request', () => {
-      db.prepare(`INSERT INTO friends (user_id, friend_id, status) VALUES (?, ?, ?)`).run(2, 1, 'pending');
-      db.prepare('UPDATE friends SET status = ? WHERE user_id = ? AND friend_id = ?').run('rejected', 2, 1);
-      const friend = db.prepare('SELECT status FROM friends WHERE user_id = ? AND friend_id = ?').get(2, 1);
-      assert.strictEqual(friend.status, 'rejected'); console.log('   ✅ Friend rejected');
+      // Rejection means deleting the friendship
+      db.prepare('DELETE FROM friends WHERE user_id1 = ? AND user_id2 = ?').run(1, 2);
+      const friend = db.prepare('SELECT * FROM friends WHERE user_id1 = ? AND user_id2 = ?').get(1, 2);
+      assert(!friend); console.log('   ✅ Friend rejected (deleted)');
     });
     it('should list user friends', () => {
-      const friends = db.prepare('SELECT * FROM friends WHERE user_id = ? AND status = ?').all(1, 'accepted');
+      db.prepare(`INSERT INTO friends (user_id1, user_id2) VALUES (?, ?)`).run(1, 2);
+      const friends = db.prepare('SELECT * FROM friends WHERE user_id1 = ? OR user_id2 = ?').all(1, 1);
       console.log(`   ✅ User has ${friends.length} friends`);
     });
     it('should remove friend', () => {
-      db.prepare('DELETE FROM friends WHERE user_id = ? AND friend_id = ?').run(1, 2);
-      const friend = db.prepare('SELECT * FROM friends WHERE user_id = ? AND friend_id = ?').get(1, 2);
+      db.prepare('DELETE FROM friends WHERE (user_id1 = ? AND user_id2 = ?) OR (user_id1 = ? AND user_id2 = ?)').run(1, 2, 2, 1);
+      const friend = db.prepare('SELECT * FROM friends WHERE (user_id1 = ? AND user_id2 = ?) OR (user_id1 = ? AND user_id2 = ?)').get(1, 2, 2, 1);
       assert(!friend); console.log('   ✅ Friend removed');
     });
   });

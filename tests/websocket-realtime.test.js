@@ -11,6 +11,15 @@ describe('🔌 WebSocket Real-Time Tests', () => {
     // Mock WebSocket server
     try {
       server = new WebSocket.Server({ port: PORT });
+      
+      // Handle connections and echo messages back
+      server.on('connection', (ws) => {
+        ws.on('message', (data) => {
+          // Echo back the message
+          ws.send(data.toString());
+        });
+      });
+      
       console.log('✅ Mock WS server started');
       done();
     } catch (err) {
