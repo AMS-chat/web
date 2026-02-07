@@ -31,7 +31,10 @@ describe('🚨 Signals API Tests (Requires Server)', () => {
   before(async () => {
     // Check if server is running
     try {
-      await fetch(`${API_URL}/api/signals/can-submit`);
+      const healthCheck = await fetch(`${API_URL}/`);
+      if (!healthCheck.ok) {
+        throw new Error('Server not responding');
+      }
       serverRunning = true;
       console.log(`   ✅ Server running at ${API_URL}`);
     } catch (error) {
