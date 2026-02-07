@@ -6,6 +6,10 @@ const assert = require('assert');
 
 const API_URL = process.env.API_URL || 'http://localhost:3000';
 let serverRunning = false;
+let authToken;
+let adminToken;
+let testUser;
+let adminUser;
 
 // ANSI colors
 const yellow = '\x1b[33m';
@@ -18,15 +22,15 @@ function requireServer(testFn) {
       console.log(`${yellow}      ⚠️  Skipped - Сървърът не работи. Пусни: node server.js${reset}`);
       return;
     }
+    if (!authToken) {
+      console.log(`${yellow}      ⚠️  Skipped - Authentication failed${reset}`);
+      return;
+    }
     return await testFn.apply(this, arguments);
   };
 }
 
 describe('🚨 Signals API Tests (Requires Server)', () => {
-  let testUser;
-  let adminUser;
-  let authToken;
-  let adminToken;
   
   before(async () => {
     // Check if server is running
@@ -63,6 +67,27 @@ describe('🚨 Signals API Tests (Requires Server)', () => {
       const data = await registerRes.json();
       authToken = data.token;
       testUser = data.user;
+      console.log(`   ✅ Test user registered`);
+    } else {
+      // User might already exist, try to login
+      const loginRes = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: '+359888000001',
+          password: 'Test123!'
+        })
+      });
+      
+      if (loginRes.ok) {
+        const data = await loginRes.json();
+        authToken = data.token;
+        testUser = data.user;
+        console.log(`   ✅ Test user logged in`);
+      } else {
+        console.log(`${yellow}   ⚠️  Could not authenticate test user${reset}`);
+        serverRunning = false;
+      }
     }
   });
   
